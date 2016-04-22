@@ -1,7 +1,8 @@
 
 include(${CMAKE_SOURCE_DIR}/CMakeMacros.txt)
 
-set(MORPGFolders "Projects/MORPG")
-addProject("MORPG" MORPGFolders)
+set(folders ${CMAKE_CURRENT_SOURCE_DIR})
+message("Adding folder " ${CMAKE_CURRENT_SOURCE_DIR})
+addProject("MORPG" "${folders}")
 
 

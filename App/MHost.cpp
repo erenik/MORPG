@@ -12,9 +12,9 @@
 #include "Graphics/Messages/GMSetEntity.h"
 #include "Graphics/Camera/CameraUtil.h"
 
-#include "MORPG/World/WorldGenerator.h"
-#include "MORPG/World/WorldMap.h"
-#include "MORPG/World/Zone.h"
+#include "World/WorldGenerator.h"
+#include "World/WorldMap.h"
+#include "World/Zone.h"
 
 #include "Message/MessageManager.h"
 #include "Message/Message.h"

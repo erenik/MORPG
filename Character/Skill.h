@@ -1,6 +1,16 @@
+/// Emil Hedemalm
+/// 2016-04-23
+/// 
+
+#include "Class.h"
+#include "String/AEString.h"
+
+struct Stats;
+class Character;
 
 /// Enum of all skills. Details are in separate Skill_ClassName.h 
 enum {
+	CLASS_0_SKILLS = 0,
 	CLASS_1_SKILLS = 100,
 	CLASS_2_SKILLS = 200,
 	CLASS_3_SKILLS = 300,
@@ -16,8 +26,9 @@ enum {
 	CLASS_15_SKILLS = 1500,
 	
 	// 0 to 99 are classless skills
-	FIGHTER_SKILLS = CLASS_1_SKILLS,
-	ACOLYTE_SKILLS = CLASS_2_SKILLS,
+	CLASSLESS_SKILLS = CLASSLESS * 100,
+	FIGHTER_SKILLS = FIGHTER * 100,
+	ACOLYTE_SKILLS = ACOLYTE * 100,
 	MONK_SKILLS = CLASS_3_SKILLS,
 	RANGER_SKILLS = CLASS_4_SKILLS, 
 	WIZARD_SKILLS = CLASS_5_SKILLS, 
@@ -30,20 +41,22 @@ enum {
 };
 
 /// Returns description of skill.
-String GetSkillDescription(int i);
-char GetSkillRequiredClass(int i);
-char GetSkillRequiredClassLevel(int i);
+String GetSkillDescription(int skill);
+char GetSkillRequiredClass(int skill);
+char GetSkillRequiredClassLevel(int skill);
 /// Queries if activatable - at all 
-bool IsActivatable(int i);
+bool IsActivatable(int skill);
+/// Yarp.
+void AddPassiveStatBonuses(int skill, char lvl, Stats & baseStats);
 /// If cooldown is ready.
-bool IsReady(int i, Character & character);
+bool IsReady(int skill, Character & character);
 /// Query to ready skill i, or start casting it for magicks. Returns true if ready.
-bool Ready(int i, Character & character);
+bool Queue(int skill, Character & character);
 /// Starts execution of the skill, animations, dealing damage, etc. Returns true if it started successfully. False if bad/failed request.
-bool Start(int i, Character & character);
+bool Start(int skill, char L, Character & character);
 /// For those skills taking time. Returns true when it should go to End.
-bool OnFrame(int i, Character & character);
-bool End(int i, Character & character);
+bool OnFrame(int skill, Character & character);
+bool End(int skill, Character & character);
 
 
 

@@ -8,16 +8,16 @@
 
 #include "MORPGSession.h"
 
-#include "MORPG/Character/Character.h"
+#include "Character/Character.h"
 
-#include "MORPG/Properties/MORPGCharacterProperty.h"
+#include "Properties/MORPGCharacterProperty.h"
 
-#include "MORPG/World/Zone.h"
-#include "MORPG/World/World.h"
+#include "World/Zone.h"
+#include "World/World.h"
 
-#include "MORPG/Physics/MORPGIntegrator.h"
-#include "MORPG/Physics/MORPGCD.h"
-#include "MORPG/Physics/MORPGCR.h"
+#include "Physics/MORPGIntegrator.h"
+#include "Physics/MORPGCD.h"
+#include "Physics/MORPGCR.h"
 
 #include "Application/Application.h"
 

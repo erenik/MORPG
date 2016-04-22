@@ -2,7 +2,7 @@
 /// 2015-01-17
 /// Building o.o
 
-#include "MORPG/Character/Character.h"
+#include "Character/Character.h"
 #include "MathLib.h"
 
 class Building;

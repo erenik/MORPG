@@ -6,7 +6,7 @@
 
 #include "Message/MessageManager.h"
 
-#include "MORPG/Character/Character.h"
+#include "Character/Character.h"
 
 #include "Network/Packet/Packet.h"
 

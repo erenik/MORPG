@@ -6,8 +6,8 @@
 
 #include "Nation.h"
 #include "Zone.h"
-#include "MORPG/Character/Character.h"
-#include "MORPG/Quest.h"
+#include "Character/Character.h"
+#include "Quest.h"
 
 #include "TextureManager.h"
 
