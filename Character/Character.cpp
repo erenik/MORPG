@@ -331,6 +331,11 @@ void Character::UpdateGearStatsToCurrentGear()
 		s.accuracy += level - 5;
 		s.attack += level - 5;
 		s.attackSpeed += (level - 5) * 0.4f;
+		s.damage += (level - 5) * 0.1f;
+		if (level > 100)
+			s.criticalHitRate += (level - 100) * 0.06125f;
+		if (level > 150)
+			s.criticalDmgBonus += (level - 150) * 0.5f;
 	}
 	UpdateStatsWithBuffs();
 }

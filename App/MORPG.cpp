@@ -176,6 +176,20 @@ void MORPG::ProcessMessage(Message * message)
 	String msg = message->msg;
 	switch(message->type)
 	{
+		case MessageType::SET_STRING:
+		{
+			SetStringMessage * ssm = (SetStringMessage*) message;
+			if (msg == "SetInputLine")
+			{
+				std::cout<<"\nSetInputLine: "<<ssm;
+				/// Good. Evaluate it.
+				String input = ssm->value;
+				EvaluateLine(input);
+				/// Hide input box thingy.
+				QueueGraphics(new GMPopUI("InputLine", hud));
+			}
+			break;
+		};
 		case MessageType::STRING:
 		{
 			if (msg == "OnReloadUI")
@@ -253,6 +267,13 @@ void MORPG::ProcessMessage(Message * message)
 				String password = "password";
 				session->Login(username, password);
 			}
+			else if (msg == "OpenInputLine")
+			{
+				QueueGraphics(new GMSetUIs("InputLine", GMUI::STRING_INPUT_TEXT, ""));
+				QueueGraphics(new GMPushUI("InputLine", hud));
+				/// Make it active for input?
+				QueueGraphics(new GMSetUIb("InputLine", GMUI::ACTIVE, true, hud));
+			}
 			break;
 		}
 	}
@@ -268,6 +289,7 @@ void MORPG::CreateDefaultBindings()
 	bindings.AddItem(new Binding(Action::FromString("NextTarget"), KEY::TAB));
 	bindings.AddItem(new Binding(Action::FromString("PreviousTarget"), List<int>(KEY::SHIFT, KEY::TAB)));
 	bindings.AddItem(new Binding(Action::FromString("Interact"), KEY::ENTER));
+	bindings.AddItem(new Binding(Action::FromString("OpenInputLine"), KEY::SPACE));
 }
 
 List<Interactable*> GetInteractablesOnScreen()
@@ -457,4 +479,22 @@ void MORPG::Log(CTextr text)
 {
 	
 	QueueGraphics(new GMSetUIt("ChatLog", GMUI::LOG_APPEND, text));
+}
+
+/// Chat or command line.
+void MORPG::EvaluateLine(String cmd)
+{
+	std::cout<<"\nCmd: "<<cmd;
+	if (!cmd.StartsWith("/"))
+		// Just send it to log for now.
+		Log(HUDCharacter()? HUDCharacter()->name+": "+cmd : cmd);
+	// OK, starts with /, cool.
+	if (cmd.StartsWith("/setlvl"))
+	{
+		int lvl = cmd.Tokenize(" ")[1].ParseInt(); HUDCharacter()->currentClassLvl.second = lvl;	HUDCharacter()->UpdateBaseStatsToClassAndLevel(); Log("Level set to "+String(lvl)+".");
+	} // Set weapon level
+	if (cmd.StartsWith("/setwpl"))
+	{
+		int lvl = cmd.Tokenize(" ")[1].ParseInt(); HUDCharacter()->SetWeaponTrainingLevel(HUDCharacter()->stats->weaponType, lvl);	HUDCharacter()->UpdateGearStatsToCurrentGear(); Log("Weapon traning level set to "+String(lvl)+".");
+	}
 }

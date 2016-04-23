@@ -54,6 +54,9 @@ public:
 	void CloseSubIMenuMenu();
 	void Log(CTextr text);
 
+	/// Chat or command line.
+	void EvaluateLine(String cmd);
+
 private:
 
 	UserInterface * hud;
