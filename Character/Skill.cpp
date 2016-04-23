@@ -2,10 +2,11 @@
 /// 2016-04-23
 /// 
 
-#include "Stat.h"
+#include "Stats.h"
 #include "Skill.h"
 #include "FighterSkills.h"
 #include "Character.h"
+#include "Properties/CharacterProperty.h"
 
 char GetSkillRequiredClass(int skill)
 {
@@ -34,11 +35,11 @@ void AddPassiveStatBonuses(int skill, char L, Stats & baseStats)
 	{
 		//// FIGHTER_SKILLS
 		case PROVOKE:	baseStats.enmityDecayReduction += L; break; // 1% per L 
-		case DEFENSIVE_TRAINING: baseStats.defense += 2 * L; baseStats.healingReceivedBonus += 0.5 * L; break;
-		case OFFENSIVE_TRAINING: baseStats.attack += 2 * L; baseStats.healingReceivedBonus -= 0.5 * L; break;
-		case DOUBLE_ATTACK: baseStats.doubleAttack += 0.75 * L; baseStats.doubleAttackAtkBonus += 10 * L; break;
-		case DEFENSIVE_TRAINING_II: baseStats.defense += 3 * L; baseStats.damageReduction += 0.5 * L; break;
-		case OFFENSIVE_TRAINING_II: baseStats.attack += 3 * L; baseStats.damageReduction -= 0.5 * L; break;
+		case DEFENSIVE_TRAINING: baseStats.defense += 2 * L; baseStats.healingReceivedBonus += 0.5f * L; break;
+		case OFFENSIVE_TRAINING: baseStats.attack += 2 * L; baseStats.healingReceivedBonus -= 0.5f * L; break;
+		case DOUBLE_ATTACK: baseStats.doubleAttack += 0.75f * L; baseStats.doubleAttackAtkBonus += 10 * L; break;
+		case DEFENSIVE_TRAINING_II: baseStats.defense += 3 * L; baseStats.damageReduction += 0.5f * L; break;
+		case OFFENSIVE_TRAINING_II: baseStats.attack += 3 * L; baseStats.damageReduction -= 0.5f * L; break;
 		case TEMPO_TRAINING: baseStats.attackSpeed += L; break;
 		case GOAD: baseStats.enmityDecayReduction += L; break; // 1% per L.
 		case DOUBLE_ATTACK_II: baseStats.doubleAttack += L; break;
@@ -53,7 +54,8 @@ bool Queue(int skill, Character & character)
 	/// Only skills with actual cooldowns need to anything in the switch-clause.
 	switch(skill)
 	{
-		break;
+		default:
+			break;
 	}
 	return true;
 }
@@ -80,8 +82,8 @@ bool Start(int skill, char L, Character & character)
 			ifHasThenActivate(RUSH_II,5);
 			ifHasThenActivate(RUSH_III,5);
 			break;
-		case PROVOKE: for (int i = 0; i < character.engagedFoes.Size(); ++i) character.engagedFoes[i]->AddEnmityFor(character, 5 + 2 * L); break;
-		case GOAD: character.mainTarget->AddEnmityFor(character, 5+2*L); character.mainTarget->AddBuff(new Buff(skill, L)); break;
+		case PROVOKE: for (int i = 0; i < character.prop->engagedFoes.Size(); ++i) character.prop->engagedFoes[i]->prop->AddEnmityFor(character, 5 + 2 * L); break;
+		case GOAD: character.prop->MainTarget()->prop->AddEnmityFor(character, 5+2*L); character.prop->MainTarget()->AddBuff(new Buff(skill, L)); break;
 		case WEAPON_BASH: character.AddBuff(new Buff(skill, L)); character.Attack(); break;
 	}
 	return true;

@@ -15,6 +15,7 @@ class Texture;
 class Model;
 class Zone;
 class Character;
+class Interactable;
 class Nation;
 class Quest;
 
@@ -22,6 +23,8 @@ class World
 {
 public:
 	World();
+
+	void Process(short timeInMs);
 
 	void ClearSettlementsAndCharacters();
 
@@ -74,6 +77,7 @@ public:
 	Matrix<Zone*> zoneMatrix;
 	/// All characters in the world.
 	List<Character*> characters;
+	List<Interactable*> interactables; // Anything interactable.
 	/// All quests in the world.
 	List<Quest*> quests;
 };

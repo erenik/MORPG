@@ -1,19 +1,24 @@
 /// Emil Hedemalm
 /// 2016-04-23
-/// All stats of something to combat with.
+/// Buffs.
 
-#include "Stat.h"
+#include "Buff.h"
+#include "Stats.h"
 #include "FighterSkills.h"
 #include "Character.h"
 
-void Buff::OnAttack(Character & character)
+bool Buff::OnAttack(Character & character)
 {
 	if (durationAttacks == -1)
-		return;
+		return false;
 	if (durationAttacks > 0)
 		--durationAttacks;
 	if (durationAttacks <= 0)
+	{
 		character.RemoveBuff(this);
+		return true;
+	}
+	return false;
 }
 
 void Buff::OnTimeElapsed(int ms, Character & character)
@@ -41,7 +46,7 @@ void Buff::AddActiveBonuses(Stats * buffedStats)
 	Stats & bs = *buffedStats;
 	switch(skill)
 	{
-		case BERSERK: multiplier = (durationMs < 30000? 1: (60000 - durationMs / 30000)); bs.attackSpeed += 100 * multiplier; bs.damageBonusP += 50 * multiplier; bs.criticalHitRate += 20 * multiplier; bs.doubleAttack += 20 * multiplier; bs.criticalDmgBonus += 20 * multiplier; break;
+		case BERSERK: multiplier = (float) (durationMs < 30000? 1: (60000 - durationMs / 30000)); bs.attackSpeed += 100 * multiplier; bs.damageBonusP += 50 * multiplier; bs.criticalHitRate += 20 * multiplier; bs.doubleAttack += 20 * multiplier; bs.criticalDmgBonus += 20 * multiplier; break;
 		case CHARGE: bs.movementSpeed += 10 * L; bs.attackBonus += 5 * L; break;
 		case DEFENDER: bs.attackBonus -= 20 + 3 *L; bs.defenseBonus += 20 + 3 *L; bs.healingReceivedBonus += 2 * L; break;
 		case RUSH: bs.attackSpeed += 100; bs.criticalHitRate += 3 * L; break;

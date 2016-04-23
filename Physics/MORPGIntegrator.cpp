@@ -32,7 +32,7 @@ void MORPGIntegrator::IntegrateVelocity(Entity * forEntity, float timeInSeconds)
 {
 
 	PhysicsProperty * pp = forEntity->physics;
-	Vector3f & position = forEntity->worldPosition;
+	Vector3f & position = forEntity->localPosition;
 
 	// Add regular velocity (from physics and effects)
 	Vector3f velocity = pp->velocity;

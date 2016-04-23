@@ -6,8 +6,12 @@
 
 class MORPGSession;
 class Zone;
-class MORPGCharacterProperty;
+class CharacterProperty;
+class Character;
 
+
+extern Camera * mapPreviewCamera;
+extern Camera * firstPersonCamera;
 extern MORPGSession * session;
 
 class MORPG : public AppState 
@@ -35,10 +39,36 @@ public:
 	/// Load map/zone. Leave old one. 
 	virtual void EnterZone(Zone * zone);
 
+	Character * HUDCharacter();
+
+	/// UI stuffs.
+	void OpenHUD(Character * forCharacter);
+	void UpdateHUD();
+	void OpenInteractionMenu();
+	void CloseInteractionMenu();
+	enum {
+		TARGET_SKILLS,
+		SELF_SKILLS,
+	};
+	void OpenSubIMenuMenu(int whichMenu);
+	void CloseSubIMenuMenu();
+	void Log(CTextr text);
 
 private:
 
+	UserInterface * hud;
+	void NextTarget();
+	void PreviousTarget();
+
+	bool hudOpen;
+	bool iMenuOpen;
+	int subMenuOpen; // -1 when none open.
+
 	/// The character property of the character we are currently controlling (both camera focus and input-focus!)
-	MORPGCharacterProperty * characterProp;
+	CharacterProperty * characterProp;
+	Character * character;
+#define hudCharacter characterProp
 
 };
+
+extern MORPG * morpg;

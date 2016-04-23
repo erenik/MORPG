@@ -7,6 +7,7 @@
 #include "Nation.h"
 #include "Zone.h"
 #include "Character/Character.h"
+#include "Properties/CharacterProperty.h"
 #include "Quest.h"
 
 #include "TextureManager.h"
@@ -19,6 +20,7 @@
 #include "Mesh/EVertex.h"
 
 #include "Graphics/GraphicsManager.h"
+#include "Maps/MapManager.h"
 
 World world;
 EMesh worldEMesh;
@@ -29,6 +31,28 @@ World::World()
 	empty = true;
 	oceanElevation = 0;
 	oceanColor = Vector4f(0,0,1,0.5f);
+}
+
+void World::Process(short timeInMs)
+{
+	// Look for characters to remove or respawn.
+	List<Character*> toRemove;
+	for (int i = 0; i < characters.Size(); ++i)
+	{
+		Character * c = characters[i];
+		if (c->prop->deleteMe)
+		{
+			toRemove.AddItem(c);
+		}
+	}
+	for (int i = 0; i < toRemove.Size(); ++i)
+	{
+		Character * c = toRemove[i];
+		MapMan.DeleteEntity(c->prop->owner);
+		characters.RemoveItem(c);
+		interactables.RemoveItem(c);
+		delete c;
+	}
 }
 
 void World::ClearSettlementsAndCharacters()
