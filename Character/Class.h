@@ -13,6 +13,13 @@ enum classes
 	FIGHTER,	// FTR
 	ACOLYTE,	// ACL
 	MONK,		// MNK
+	RANGER,		// RNG
+	WIZARD,		// WZD
+	DUELIST,	// DST
+	ROGUE,		// ROG
+	HOLY_PROTECTOR, // HPR
+	SLAYER,		// SLR
+	DEATHS_DISCIPLE, // DTH
 	CLASSES,
 };
 

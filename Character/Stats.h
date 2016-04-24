@@ -25,6 +25,7 @@ struct Stats {
 	};
 	// Determines how it is to play them. Used actively in the MORPGCharacterProperty. Default while testing: 2. meters per second.
 	float movementSpeed;
+	float movementSpeedBonus; // %, 0 default, 25 for monk 2-hour, etc.
 
 	int stunDurationMs; // Currently stunned?! Yes.
 	int disarmDurationMs; // Currently disarmed?! Yes.
@@ -72,6 +73,8 @@ struct Stats {
 	float unarmedSelfDamage; // Default 30%, decreases with traits.
 	float blockRate; // %
 	float blockDMGReduction; // % 
+	float kickAttack; // %
+	float kickAttackBonus; // o-o
 
 	float stealRate; // Rogue stats, % on attempts
 

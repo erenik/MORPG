@@ -3,6 +3,8 @@
 /// A character.
 
 #include "Character.h"
+#include "Skill.h"
+#include "AllSkillsEnum.h"
 #include "Properties/CharacterProperty.h"
 #include "Stats.h"
 #include "App/MORPG.h"
@@ -81,8 +83,8 @@ void Character::Spawn(ConstVec3fr position)
 	// update all stats right before spawning.
 	UpdateBaseStatsToClassAndLevel();
 	/// Copy hp and mp from max, since spawning.
-	stats->hp = stats->maxHp;
-	stats->mp = stats->maxMp;
+	stats->hp = (float) stats->maxHp;
+	stats->mp = (float) stats->maxMp;
 
 	// Select texture based on type.
 	String tex = "0xAA";
@@ -241,20 +243,32 @@ int Character::UpdateBaseStatsAlternative()
 }
 void Character::UpdateBaseStatsForClass()
 {
-	availableSkills.Clear();
+	availableSkills.Clear(); // Clear lists of available ones.
+	activatableCombatSkills.Clear();
 	for (int i = 0; i < skills.Size(); ++i)
 	{
-		std::pair<char, char> skill = skills[i];
-		if (skill.first < currentClassLvl.first * 100 || skill.first >= (currentClassLvl.first+1) * 100)
+		std::pair<int, char> skill = skills[i];
+		// Diss those outside of range (120 skills per class).
+		if (skill.first > CLASSLESS_SKILLS * SPC &&
+				(
+				skill.first < currentClassLvl.first * SPC || skill.first >= (currentClassLvl.first+1) * SPC
+				)
+			)
+			continue;
+		// Exception to the rule.
+		if (skill.first == 0 && currentClassLvl.first != CLASSLESS)
 			continue;
 		availableSkills.AddItem(skill);
+		if (IsActivatableCombatSkill(skill.first))
+			activatableCombatSkills.AddItem(skill);
 	}
 	/// Base stats.
 	float strL, vitL, hpL, mpL, magL, MdefL, hppL = 0, mppL = 0;
 	switch(currentClassLvl.first)
 	{
 		case CLASSLESS: strL = vitL = magL = MdefL = 0.7f; hpL = mpL = 3; hppL = mppL = 0; break;
-		case FIGHTER: strL = 1.1f; vitL = 1.2f; magL = 0.5f; MdefL = 0.8; hpL = 11; hppL = 2.7f; break;
+		case FIGHTER: strL = 1.1f; vitL = 1.2f; magL = 0.5f; MdefL = 0.8f; hpL = 11.f; hppL = 2.7f; break;
+		case MONK: strL = 1.2f; vitL = 1.1f; magL = 0.8f; MdefL = 0.4f; hpL = 10.f; hppL = 2.6f; break;
 		default:
 			assert(false);
 	}
@@ -271,8 +285,8 @@ void Character::UpdateBaseStatsForClass()
 	bs.mag += (int) magL * L;
 	bs.mdef += (int) MdefL * L;
 	bs.maxMp += (int) mpL * L;
-	bs.maxHp *= (1.0 + hppL * L * 0.01f);
-	bs.maxMp *= (1.0 + mppL * L * 0.01f);
+	bs.maxHp = int(bs.maxHp * (1.0 + hppL * L * 0.01f));
+	bs.maxMp = int(bs.maxHp * (1.0 + mppL * L * 0.01f));
 
 	/// Passive Traits
 	int tier = currentClassLvl.second / 5;
@@ -294,7 +308,11 @@ void Character::UpdateBaseStatsForClass()
 		{
 			switch(tier)
 			{
-				case 3: case 4: // lvl 15, 20, 25 to 29
+				case 14: case 15:
+				case 12: case 13:
+				case 10: case 11:
+				case 6: case 7: case 8: case 9:
+				case 3: case 4: case 5: // lvl 15, 20, 25 to 29
 					bs.counterAttack += 2;
 					bs.attack += 5;
 					bs.defense += 5;
@@ -302,6 +320,26 @@ void Character::UpdateBaseStatsForClass()
 					bs.attack += 10;
 					bs.defense += 10;
 					bs.criticalHitRate += 3;
+					break;
+			}
+			break;
+		}
+		case MONK:
+		{	
+			switch(tier)
+			{
+				case 10: // Lvl 50+
+				case 6: case 7: case 8: case 9:
+					bs.unarmedDMGBonus += 3.f;
+					bs.regen += .5f;
+					bs.attackSpeed += 3.f;
+				case 3: case 4: case 5: // Up to 30
+					bs.unarmedDMGBonus += 2.f;
+					bs.regen += .5f;
+					bs.attackSpeed += 5.f;
+				case 0: case 1: case 2: // lvl 0 to 14
+					bs.unarmedDMGBonus += 5.f;
+					bs.regen += 1.f;
 					break;
 			}
 			break;
@@ -341,12 +379,16 @@ void Character::UpdateGearStatsToCurrentGear()
 		s.accuracy += level - 5;
 		s.attack += level - 5;
 		s.attackSpeed += (level - 5) * 0.4f;
-		s.damage += (level - 5) * 0.1f;
+		s.damage += int((level - 5) * 0.1f);
 		if (level > 100)
 			s.criticalHitRate += (level - 100) * 0.06125f;
 		if (level > 150)
 			s.criticalDmgBonus += (level - 150) * 0.5f;
 	}
+	/// Now that we know what weapon we have, apply unarmed amage bonus straight to damage.
+	if (s.weaponType == UNARMED)
+		s.damage += s.unarmedDMGBonus;
+
 	UpdateStatsWithBuffs();
 }
 
@@ -355,18 +397,19 @@ void Character::UpdateStatsWithBuffs()
 	// Copy first HP and MP before over-writing shits, yo.
 	statsWithGear->hp = stats->hp;
 	statsWithGear->mp = stats->mp;
-
 	*this->statsWithBuffs = *this->statsWithGear; // Copy over gear data.
+
+	/// Review skills
 	for (int i = 0; i < buffs.Size(); ++i)
 	{
 		Buff * buff = buffs[i];
-		
+		AddStatsFromBuff(buff, this);
 	}
+
 
 	// Add some base attack/defense based on level and str/vit? <- depending on weapon too?
 	stats->attack += stats->str / 2;
 	stats->defense += stats->vit / 2;
-
 }
 
 
@@ -405,21 +448,11 @@ bool Character::HasBuff(int fromSkill)
 	return false;
 }	
 
-void Character::HealTick()
+/// Taking into consideration bonuses.
+float Character::MovementSpeed()
 {
-	int pre = stats->hp;
-	stats->hp += stats->resting;
-	stats->mp += stats->resting; 
-	stats->ClampHpMp();
-	int recovered = stats->hp - pre;
-	if (morpg->HUDCharacter() == this && recovered > 0)
-	{
-		morpg->UpdateHUD();
-		morpg->Log(Text("Recovered "+String(recovered), 0x00FF00FF));
-	}
+	return stats->movementSpeed * (1.f + stats->movementSpeedBonus);
 }
-
-
 
 /// o.o
 bool Character::WriteTo(std::fstream & file)

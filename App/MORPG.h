@@ -46,13 +46,15 @@ public:
 	/// UI stuffs.
 	void OpenHUD(Character * forCharacter);
 	void UpdateHUD();
+	void UpdateHPInHUD();
 	void UpdateTargetInHUD(); // Target sub-section of HUD.
 	bool InteractionMenuOpen() { return iMenuOpen;};
 	void OpenInteractionMenu();
 	void CloseInteractionMenu();
 	enum {
-		TARGET_SKILLS,
-		SELF_SKILLS,
+		TARGET_SKILLS,	// Also for later.
+		SELF_SKILLS,	// Self-only. Added later maybe with config, now now.
+		COMBAT_SKILLS, // All skills that are relevant for or near combat, healing, offensive, most non-passive.
 	};
 	void OpenSubIMenuMenu(int whichMenu);
 	void CloseSubIMenuMenu();

@@ -12,6 +12,7 @@
 #include "Character/Stats.h"
 #include "Character/PlayerCharacter.h"
 #include "Character/Family.h"
+#include "Character/Skill.h"
 
 #include "Random/Random.h"
 #include "Properties/CharacterProperty.h"
@@ -239,15 +240,25 @@ void MORPG::ProcessMessage(Message * message)
 				OpenInteractionMenu();
 			else if (msg == "IMenuClosed")
 				iMenuOpen = false;
-			else if (msg == "Target skills")
-			{
-				// Open menu for it.
-				OpenSubIMenuMenu(TARGET_SKILLS);
-			}
+			else if (msg == "Skills" || msg == "Combat skills")
+				OpenSubIMenuMenu(COMBAT_SKILLS);
 			else if (msg == "Attack") // Attack! 
 				characterProp->Engage();
 			else if (msg == "Disengage")
 				characterProp->Disengage();
+			else if (msg == "CloseSubIMenu")
+				CloseSubIMenuMenu();
+			else if (msg == "TargetSelf")
+				HUDCharacter()->prop->SetTarget(HUDCharacter());
+			else if (msg.StartsWith("Skill:"))
+			{
+				// Target?
+				String skill = msg - "Skill:";
+				int sk = skill.Tokenize("L")[0].ParseInt();
+				int level = skill.Tokenize("L")[1].ParseInt();
+				// Try use straight away.
+				StartPreparing(sk, level, HUDCharacter());
+			}
 			else if (msg == "Check")
 			{
 				if (characterProp->mainTarget == 0)
@@ -309,6 +320,7 @@ void MORPG::CreateDefaultBindings()
 	bindings.AddItem((new Binding(Action::FromString("PreviousTarget"), List<int>(KEY::SHIFT, KEY::TAB)))->SetActivateOnRepeat(true));
 	bindings.AddItem(new Binding(Action::FromString("Interact"), KEY::ENTER));
 	bindings.AddItem(new Binding(Action::FromString("OpenInputLine"), KEY::SPACE));
+	bindings.AddItem(new Binding(Action::FromString("TargetSelf"), KEY::F1));
 }
 
 List<Interactable*> GetInteractablesOnScreen()
@@ -461,7 +473,7 @@ void MORPG::EnterZone(Zone * zone)
 		/// Populate with some monsters too?
 		for (int i = 0; i < 20; ++i)
 		{
-			Character * foe = new Foe(SHIELDLING, morpgRand.Randf() * 7 - 4);
+			Character * foe = new Foe(SHIELDLING, (int) (morpgRand.Randf() * 7.f - 4.f));
 			world.characters.Add(foe);
 			world.interactables.AddItem(foe);
 			Vector3f position = Vector3f(morpgRand.Randf(20)-10,0,morpgRand.Randf(20)-10); 
@@ -506,11 +518,18 @@ void MORPG::UpdateHUD()
 {
 	if (!hudCharacter)
 		return;
-	QueueGraphics(new GMSetUIi("HP", GMUI::INTEGER_INPUT, character->stats->hp));
-	QueueGraphics(new GMSetUIi("MP", GMUI::INTEGER_INPUT, character->stats->mp));
-	QueueGraphics(new GMSetUIs("MaxHP", GMUI::TEXT, "/ "+String(character->stats->maxHp)));
+	QueueGraphics(new GMSetUIi("MP", GMUI::INTEGER_INPUT, (int) character->stats->mp));
 	QueueGraphics(new GMSetUIs("MaxMP", GMUI::TEXT, "/ "+String(character->stats->maxMp)));
+	UpdateHPInHUD();
 	UpdateTargetInHUD();
+}
+
+void MORPG::UpdateHPInHUD()
+{
+	if (!hudCharacter)
+		return;
+	QueueGraphics(new GMSetUIi("HP", GMUI::INTEGER_INPUT, (int) character->stats->hp));
+	QueueGraphics(new GMSetUIs("MaxHP", GMUI::TEXT, "/ "+String(character->stats->maxHp)));
 }
 
 void MORPG::UpdateTargetInHUD() // Target sub-section of HUD.
@@ -537,10 +556,14 @@ void MORPG::OpenInteractionMenu()
 	if (hudCharacter->MainTarget()->characterType == Character::FOE)
 	{
 		if (hudCharacter->IsAttacking())
+		{
 			buttons.AddItem("Disengage");
+		}
 		else
 			buttons.AddItem("Attack");
-		buttons.AddItem("Target skills");
+		// If have any skills, that is.
+		if (hudCharacter->ch->activatableCombatSkills.Size())
+			buttons.AddItem("Skills");
 	}
 	buttons.AddItem("Check");
 	for (int i = 0; i < buttons.Size(); ++i)
@@ -562,13 +585,31 @@ void MORPG::CloseInteractionMenu()
 
 void MORPG::OpenSubIMenuMenu(int whichMenu)
 {
+	if (hudCharacter == 0)
+		return;
+	// Don't auto grab target. If no target, grab self if anything.
 	if (subMenuOpen >= 0)
 		CloseSubIMenuMenu();
 	subMenuOpen = whichMenu;
+	Character * ch = hudCharacter->ch;
+	/// Populate it.
+	QueueGraphics(new GMClearUI("SubIMenu", hud));
+	for (int i = 0; i < ch->activatableCombatSkills.Size(); ++i)
+	{
+		std::pair<int,char> skill = ch->activatableCombatSkills[i];
+		String text = GetSkillName(skill.first);
+		UIButton * button =  new UIButton("CloseSubIMenu&Skill:"+String(skill.first)+"L"+String(skill.second));
+		button->text = text;
+		button->sizeRatioY = MaximumFloat(1.f / ch->activatableCombatSkills.Size(), 0.2f);
+		button->textureSource = hud->defaultTextureSource;
+		QueueGraphics(new GMAddUI(button, "SubIMenu"));		
+	}
+	QueueGraphics(new GMPushUI("SubIMenu", hud));
 }
 void MORPG::CloseSubIMenuMenu()
 {
-
+	QueueGraphics(new GMPopUI("SubIMenu", hud));
+	subMenuOpen = -1;
 }
 
 
@@ -603,7 +644,7 @@ void MORPG::EvaluateLine(String cmd)
 	{
 		c->prop->Revive();
 	}
-	if (cmd.StartsWith("/testspd"))
+	if (cmd.StartsWith("/testspd") || cmd.StartsWith("/setspd"))
 	{
 		testMultiplier = cmd.Tokenize(" ")[1].ParseFloat();
 		ClampFloat(testMultiplier, 0.1f, 3.f);

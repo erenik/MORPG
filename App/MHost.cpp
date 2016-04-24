@@ -236,9 +236,10 @@ void MHost::CreateDefaultBindings()
 {
 	// Add camera controls and camera stuff as necessary?
 	InputMapping & mapping = this->inputMapping;
-	mapping.bindings.Add(new Binding(Action::FromString("WorldEditor"), KEY::F1));
+/*	mapping.bindings.Add(new Binding(Action::FromString("WorldEditor"), KEY::F1));
 	mapping.bindings.Add(new Binding(Action::FromString("SettlementEditor"), KEY::F2));
 	mapping.bindings.Add(new Binding(Action::FromString("SettlementEditor"), KEY::SHIFT, KEY::F2));
+	*/
 	// Add default camera bindings.
 	mapping.bindings.Add(CreateDefaultCameraBindings());
 }

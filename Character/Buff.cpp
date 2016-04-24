@@ -4,10 +4,16 @@
 
 #include "Buff.h"
 #include "Stats.h"
-#include "FighterSkills.h"
+#include "AllSkillsEnum.h"
 #include "Character.h"
 
-bool Buff::OnAttack(Character & character)
+Buff::Buff(int skill, char L) : skill(skill), L(L), durationAttacks(-1), durationMs(-1)
+{
+	removeThis = false;
+	msSoFar = 0;
+}
+
+bool Buff::OnAttack(Character * character)
 {
 	if (durationAttacks == -1)
 		return false;
@@ -15,45 +21,27 @@ bool Buff::OnAttack(Character & character)
 		--durationAttacks;
 	if (durationAttacks <= 0)
 	{
-		character.RemoveBuff(this);
+		removeThis = true;
 		return true;
 	}
 	return false;
 }
 
-void Buff::OnTimeElapsed(int ms, Character & character)
+void Buff::OnTimeElapsed(int ms, Character * ch)
 {
 	if (durationMs == -1)
 		return;
-	durationMs += ms;
-	int maxDurationMs = 30000;
+	msSoFar += ms;
 	switch(skill)
 	{
 		case BERSERK:
-			if (durationMs > 30000)
-				// Recalc bonuses.
-				character.UpdateStatsWithBuffs();
-			maxDurationMs = 60000;
+			if (msSoFar > 30000)
+				// Recalc bonuses... every second?
+				ch->UpdateStatsWithBuffs();
+			break;
 		default:
 			break;
 	}
-	if (durationMs > maxDurationMs)
-		character.RemoveBuff(this);
-}
-
-void Buff::AddActiveBonuses(Stats * buffedStats)
-{
-	Stats & bs = *buffedStats;
-	switch(skill)
-	{
-		case BERSERK: multiplier = (float) (durationMs < 30000? 1: (60000 - durationMs / 30000)); bs.attackSpeed += 100 * multiplier; bs.damageBonusP += 50 * multiplier; bs.criticalHitRate += 20 * multiplier; bs.doubleAttack += 20 * multiplier; bs.criticalDmgBonus += 20 * multiplier; break;
-		case CHARGE: bs.movementSpeed += 10 * L; bs.attackBonus += 5 * L; break;
-		case DEFENDER: bs.attackBonus -= 20 + 3 *L; bs.defenseBonus += 20 + 3 *L; bs.healingReceivedBonus += 2 * L; break;
-		case RUSH: bs.attackSpeed += 100; bs.criticalHitRate += 3 * L; break;
-		case OFFENSIVE_STANCE: bs.attackBonus += 20+ 3 *L; bs.defenseBonus -= 20 + 3 *L ; bs.healingReceivedBonus -= 2 * L; break;
-		case GOAD: bs.attackBonus += 10; bs.defenseBonus -= 10; break;
-		case WEAPON_BASH: bs.damageBonusP += 10 * L;
-		case RUSH_II: bs.criticalDmgBonus += 3 * L; bs.accuracy += 3 * L; break;
-		case RUSH_III: bs.criticalHitRate += 2 * L; bs.attackBonus += 2 * L; break;
-	}
+	if (msSoFar > durationMs)
+		removeThis = true;
 }

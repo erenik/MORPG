@@ -80,10 +80,11 @@ public:
 	Buff * AddBuff(Buff * newBuff);
 	void RemoveBuff(Buff * goBuff);
 	bool HasBuff(int fromSkill);
+	/// Taking into consideration bonuses.
+	float MovementSpeed();
 
 	/// Level, part of the 
 	int Level() const {return currentClassLvl.second;};
-	void HealTick();
 
 	/// Adds buff. Recalcualtes stats. Already created when adding.
 	char SkillLevel(int skill);
@@ -111,6 +112,7 @@ public:
 	/// Skills currently being evaluated each frame.
 	List<int> activeSkills;
 	List<std::pair<int,char>> availableSkills; // Skills available for current level/class combination, includes both skill # and level of the skill.
+	List<std::pair<int,char>> activatableCombatSkills; /// Currently available and activatable skills.
 
 	/// Slot and item.
 	List<std::pair<char,Item*>> gear;

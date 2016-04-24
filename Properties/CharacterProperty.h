@@ -20,6 +20,11 @@ public:
 	/// Time passed in seconds..! Will steer if inputFocus is true.
 	virtual void Process(int timeInMs);
 
+
+	void HealTick();
+	/// Heals, notifies GUI etc. as needed. Float in order to work with regen, etc.
+	void HealHp(float amount);
+	void HealMp(float amount);
 	bool IsAttacking() const { return attacking; };
 	/// o-o
 	void Revive();
@@ -32,15 +37,21 @@ public:
 	void Disengage();
 	void ToggleAutorun();
 	void ToggleHeal();
+	void LockTarget(); // Functions since they may affect such things as camera, auto-run mechanics, etc.
+	void UnlockTarget(); 
 
 	void LoseTarget();
 	Interactable * GetTarget();
 	void SetTarget(Interactable * i);
+	/// Make sure entity is visible (if it has camera focus).
+	void UpdateCamera();
 
-	/// Performs an attack on main target (probably)
-	virtual void Attack();
-	virtual void AddEnmityFor(Character & character, int amount);
+	/// Performs an attack on main target (probably). Returns true if target died. false if still alive for processing more attacks.
+	virtual bool Attack();
+	virtual void AddEnmityFor(Character * character, int amount);
 
+	/// For when toggling, n target locking, etc.
+	void UpdateAutorun();
 	// Default false. Enable to steer this entity.
 	bool inputFocus;
 
@@ -54,6 +65,11 @@ public:
 
 	/// True when should be removed.
 	bool deleteMe;
+
+	/// For preparing skills
+	int preparationTimeMs;
+	int activeSkill; // Active skill being prepared.
+
 private:
 	/** Checks states via InputManager. Regular key-bindings should probably still be defined in the main game state 
 		and then passed on as messages to the character with inputFocus turned on.
