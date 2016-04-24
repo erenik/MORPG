@@ -37,6 +37,7 @@ CharacterProperty::CharacterProperty(Entity * characterEntity, Character * assoc
 	deleteMe = false;
 	/// Associate property too.
 	ch->prop = this;
+	movementEnabled = true;
 }
 
 CharacterProperty::~CharacterProperty()
@@ -68,27 +69,40 @@ void CharacterProperty::Process(int timeInMs)
 	if (healing)
 	{
 		healingMs += timeInMs;
-		if (healingMs > 500)
+		if (healingMs > 5000 * testMultiplier)
 		{
-			healingMs -= 500;
+			healingMs -= 5000 * testMultiplier;
 			// Actually heal.
 			ch->HealTick();
 		}
 		return;
 	}
-	if (attacking)
-	{
-		// Cooldown ready?
+	// Cooldown ready?
+	if (attackCooldown > 0)
 		attackCooldown = (short) MaximumFloat(attackCooldown - timeInMs, 0);
-		
+	if (attacking)
+	{		
 		if (attackCooldown > 1)
 			return;
 		/// Is in range?
+		float dist = (mainTarget->Position() - ch->Position()).LengthSquared();
+		if (dist > 4)
+		{
+			// Wait, display message every once in a while.
+			static int distCounter = 0;
+			distCounter += timeInMs;
+			if (distCounter > 1000)
+			{	
+				morpg->Log("Enemy out of range");
+				distCounter = 0;
+			}
+			return;
+		}
 		Attack();
 		/// If unarmed, swing again.
 		if (ch->statsWithBuffs->weaponType == UNARMED && TargetAlive())
 			Attack();
-		attackCooldown += ch->stats->weaponDelay; // Attack cooldown.
+		attackCooldown += ch->stats->weaponDelayMs * testMultiplier; // Attack cooldown.
 	}
 }
 
@@ -121,8 +135,9 @@ bool MCharProp::TargetAlive()
 Random attackRand;
 void MCharProp::Attack()
 {
+	Character * target = MainTarget();
 	// Perform an attack.
-	Stats * tStats = MainTarget()->stats,
+	Stats * tStats = target->stats,
 		* mStats = ch->stats;
 
 	/// Add to engaged list on attack if not already there.
@@ -187,8 +202,8 @@ void MCharProp::Attack()
 		}
 	}
 	// Notify.
-	morpg->Log(Text(ch->name+" hits "+MainTarget()->name+" for "+String(damage)+" damage."+addedStr, 
-		(MainTarget()->characterType == Character::FOE)? 0xFFFFFFFF : 0xFF7F00FF));
+	morpg->Log(Text(ch->name+" hits "+target->name+" for "+String(damage)+" damage."+addedStr, 
+		(target->characterType == Character::FOE)? 0xFFFFFFFF : 0xFF7F00FF));
 	if (ch == morpg->HUDCharacter()) // Update HP if damaged.
 		morpg->UpdateHUD();
 	if (tStats->hp < 0)
@@ -217,9 +232,28 @@ void MCharProp::Attack()
 	}
 	for (int i = 0; i < ch->buffs.Size(); ++i)
 		ch->buffs[i]->OnAttack(*ch);
+}
 
-	// Add delay.
-	mStats->weaponDelay = 600;
+/// o-o
+void MCharProp::Revive()
+{
+	ch->stats->hp = ch->stats->maxHp * 0.25f; 
+	dead = false;
+	targetLocked = false;
+	movementEnabled = true;
+	if (ch == morpg->HUDCharacter())
+	{
+		morpg->Log(ch->name+" is revived!");
+		morpg->UpdateHUD();
+	}
+}
+
+void MCharProp::DisableMovement()
+{
+	movementEnabled = false;
+	// Set vel 0.
+	QueuePhysics(new PMSetEntity(owner, PT_VELOCITY, Vector3f()));
+	QueuePhysics(new PMSetEntity(owner, PT_RELATIVE_VELOCITY, Vector3f()));
 }
 
 void MCharProp::OnDeath()
@@ -229,6 +263,7 @@ void MCharProp::OnDeath()
 		morpg->CloseInteractionMenu();
 	dead = true;
 	LoseTarget();
+	DisableMovement();
 }
 
 void MCharProp::AddEnmityFor(Character & character, int amount)
@@ -273,8 +308,29 @@ void CharacterProperty::Engage()
 	attacking = true;
 	targetLocked = true;
 	// o-o add initial delay.
-	attackCooldown += ch->stats->weaponDelay;
-	ClampFloat(attackCooldown, 0, ch->stats->weaponDelay * 10);
+	attackCooldown += ch->stats->weaponDelayMs * 0.5f;
+	ClampFloat(attackCooldown, 0, ch->stats->weaponDelayMs);
+	/// Update menu.
+	if (morpg->HUDCharacter())
+	{
+		morpg->Log("Engaging target...");
+		morpg->CloseInteractionMenu();
+		morpg->OpenInteractionMenu();
+	}
+}
+
+void CharacterProperty::Disengage()
+{
+	attacking = false;
+	targetLocked = false;
+	attackCooldown += ch->stats->weaponDelayMs;
+	/// Update menu.
+	if (morpg->HUDCharacter())
+	{
+		morpg->Log("Disengaging target...");
+		morpg->CloseInteractionMenu();
+		morpg->OpenInteractionMenu();
+	}
 }
 
 /// o-o
@@ -337,6 +393,7 @@ void CharacterProperty::LoseTarget()
 	{
 		morpg->UpdateHUD();
 		morpg->CloseInteractionMenu();
+		morpg->OnTargetUpdated();
 	}
 }
 
@@ -352,9 +409,19 @@ void CharacterProperty::SetTarget(Interactable * i)
 		return;
 	}
 	mainTarget = i;
-	// Update menu depending on target?
-	morpg->CloseInteractionMenu();
-	morpg->OpenInteractionMenu();
+	/// Update HUD if relevant
+	if (ch == morpg->HUDCharacter())
+	{
+//		morpg->Log("Target with sortValue: "+String(i->sortValue));
+		morpg->UpdateTargetInHUD();
+		morpg->OnTargetUpdated();
+		// Update menu depending on target?
+		if (morpg->InteractionMenuOpen())
+		{
+			morpg->CloseInteractionMenu();
+			morpg->OpenInteractionMenu();
+		}
+	}
 }
 
 
@@ -363,6 +430,8 @@ void CharacterProperty::SetTarget(Interactable * i)
 */
 void CharacterProperty::ProcessInput()
 {
+	if (!movementEnabled)
+		return;
 	float forward = 0.f;
 	// Should probably check some lexicon of key-bindings here too. or?
 	if (InputMan.KeyPressed(KEY::W))
@@ -407,9 +476,18 @@ void CharacterProperty::ProcessInput()
 			lastRight = right;
 		}
 	}
-			
-	/// o-o cameraaaa focsuuuuuu!
-	if (owner->cameraFocus)
+	
+	// If has target, go towards.
+	if (targetLocked)
+	{
+		// Go towards or uh.. side-ways from.
+		Vector3f dirToT = mainTarget->Position() - owner->worldPosition;
+		dirToT.Normalize();
+		Vector3f perp = dirToT.CrossProduct(Vector3f(0,1,0)).NormalizedCopy();
+		QueuePhysics(new PMSetEntity(owner, PT_VELOCITY, - dirToT * forward + perp * right));
+	}
+	/// o-o cameraaaa focsuuuuuu! Walk based on what we see with the current camera.
+	else if (owner->cameraFocus)
 	{
 
 		// Free-form running (relative to camera)
@@ -445,23 +523,26 @@ void CharacterProperty::ProcessInput()
 
 
 		/// Make sure the camera is rotating around the center of the entity.
-		float height = 1.7f;
+		float height = 2.2f;
 		if (owner->cameraFocus->relativePosition.y != height)
 		{
-			Graphics.QueueMessage(new GMSetCamera(owner->cameraFocus, CT_RELATIVE_POSITION_Y, height));
-			Graphics.QueueMessage(new GMSetCamera(owner->cameraFocus, CT_TRACKING_POSITION_OFFSET, Vector3f(0,height,0)));
+
+			Graphics.QueueMessage(new GMSetCamera(owner->cameraFocus, CT_DESIRED_MINIMUM_Y_DIFF, height));
+//			Graphics.QueueMessage(new GMSetCamera(owner->cameraFocus, CT_TRACKING_POSITION_OFFSET, Vector3f(0,height,0)));
 		}
 		/// Camera Control, Booyakasha!
 		float cameraRight = 0.f;
+		float cameraYawSpeed = 2.f;
 		if (InputMan.KeyPressed(KEY::LEFT))
-			cameraRight += 1.f;
+			cameraRight += cameraYawSpeed;
 		if (InputMan.KeyPressed(KEY::RIGHT))
-			cameraRight -= 1.f;
+			cameraRight -= cameraYawSpeed;
 
 		// Set it! :D
 		static float pastCameraRight = 0.f;
 		if (cameraRight != pastCameraRight)
 		{
+			/// Move position rightward?
 			Graphics.QueueMessage(new GMSetCamera(owner->cameraFocus, CT_ROTATION_SPEED_YAW, -cameraRight));
 			pastCameraRight = cameraRight;
 		}

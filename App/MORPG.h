@@ -14,6 +14,8 @@ extern Camera * mapPreviewCamera;
 extern Camera * firstPersonCamera;
 extern MORPGSession * session;
 
+extern float testMultiplier;
+
 class MORPG : public AppState 
 {
 public:
@@ -44,6 +46,8 @@ public:
 	/// UI stuffs.
 	void OpenHUD(Character * forCharacter);
 	void UpdateHUD();
+	void UpdateTargetInHUD(); // Target sub-section of HUD.
+	bool InteractionMenuOpen() { return iMenuOpen;};
 	void OpenInteractionMenu();
 	void CloseInteractionMenu();
 	enum {
@@ -56,6 +60,8 @@ public:
 
 	/// Chat or command line.
 	void EvaluateLine(String cmd);
+	/// Show with cool arrows, yes.
+	void OnTargetUpdated();
 
 private:
 
@@ -71,7 +77,6 @@ private:
 	CharacterProperty * characterProp;
 	Character * character;
 #define hudCharacter characterProp
-
 };
 
 extern MORPG * morpg;

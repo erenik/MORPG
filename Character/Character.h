@@ -52,7 +52,8 @@ public:
 	void Spawn(ConstVec3fr position);
 	void SetCameraFocus();
 
-
+	/// Where.
+	virtual Vector3f Position();
 	void BecomeUntargetable();
 
 	/// Returns level.

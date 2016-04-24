@@ -55,7 +55,7 @@ struct Stats {
 
 	int damage;
 	float damageBonusP; // %-based
-	int weaponDelay; // Based on weapon, maybe 1 or 2 skills may affect.
+	int weaponDelayMs; // Based on weapon, maybe 1 or 2 skills may affect. Milliseconds-based. 
 	float attackSpeed; // Has its own forumale to affect weapon delay.
 
 	float counterAttack; // %-based, Fighter stats

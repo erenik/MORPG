@@ -97,6 +97,8 @@ void Character::Spawn(ConstVec3fr position)
 
 	// Attach ze propororoty to bind the entity and the player.
 	Entity * entity = MapMan.CreateEntity(name, ModelMan.GetModel("Characters/TestCharacter.obj"), TexMan.GetTexture(tex), position);
+	// Adjust size of representation.
+	QueuePhysics(new PMSetEntity(entity, PT_SET_SCALE, representationScale));
 	entity->properties.Add(new CharacterProperty(entity, this));
 	QueuePhysics(new PMSetEntity(entity, PT_PHYSICS_TYPE, PhysicsType::DYNAMIC));
 	
@@ -107,6 +109,14 @@ void Character::SetCameraFocus()
 	// Attach camera to the player.
 	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ENTITY_TO_TRACK, this->prop->owner));
 	QueueGraphics(new GMSetCamera(firstPersonCamera)); // Set as active camera.
+}
+
+/// Where.
+Vector3f Character::Position()
+{
+	if (prop)
+		return prop->owner->worldPosition;
+	return Vector3f();
 }
 
 void Character::BecomeUntargetable()
@@ -261,8 +271,8 @@ void Character::UpdateBaseStatsForClass()
 	bs.mag += (int) magL * L;
 	bs.mdef += (int) MdefL * L;
 	bs.maxMp += (int) mpL * L;
-	bs.maxHp *= (1.0 + hppL * L);
-	bs.maxMp *= (1.0 + mppL * L);
+	bs.maxHp *= (1.0 + hppL * L * 0.01f);
+	bs.maxMp *= (1.0 + mppL * L * 0.01f);
 
 	/// Passive Traits
 	int tier = currentClassLvl.second / 5;
@@ -397,13 +407,15 @@ bool Character::HasBuff(int fromSkill)
 
 void Character::HealTick()
 {
+	int pre = stats->hp;
 	stats->hp += stats->resting;
 	stats->mp += stats->resting; 
 	stats->ClampHpMp();
-	if (morpg->HUDCharacter() == this)
+	int recovered = stats->hp - pre;
+	if (morpg->HUDCharacter() == this && recovered > 0)
 	{
 		morpg->UpdateHUD();
-		morpg->Log(Text("Recovered "+String(stats->resting), 0x00FF00FF));
+		morpg->Log(Text("Recovered "+String(recovered), 0x00FF00FF));
 	}
 }
 

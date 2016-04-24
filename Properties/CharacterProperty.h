@@ -20,11 +20,16 @@ public:
 	/// Time passed in seconds..! Will steer if inputFocus is true.
 	virtual void Process(int timeInMs);
 
+	bool IsAttacking() const { return attacking; };
+	/// o-o
+	void Revive();
 	/// Removing targets, links, enmities.
+	void DisableMovement(); // Handles it.
 	void OnDeath(); // On dying, stop somethings, pull down some menus.
 	void OnCharacterDefeated(Character * c);
 	bool TargetAlive();
 	void Engage();
+	void Disengage();
 	void ToggleAutorun();
 	void ToggleHeal();
 
@@ -61,6 +66,7 @@ private:
 	/// For handling movement.
 	Vector3f lastAcc;
 	float lastRight;
+	bool movementEnabled;
 	bool autorun;
 	bool healing;
 	bool attacking;

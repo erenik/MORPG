@@ -19,7 +19,7 @@ Stats::Stats()
 	parryingRate = disarmRate = criticalDmgBonus = enemyCriticalHitRate = healingReceivedBonus = damageBonusP = 0;
 	criticalHitRate = 3;
 	damage = 3; // default minimum for unarmed.
-	weaponDelay = 600; // default for unarmed? 600 - 6 seconds.
+	weaponDelayMs = 6000; // default for unarmed? 600 - 6 seconds.
 	attackSpeed = 0; // Default, affects % wise with formulae
 	counterAttack = doubleAttack = 0;
 	resting = 3; // Default resting, 3 hp/mp per 5 seconds.

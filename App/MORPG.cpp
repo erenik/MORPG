@@ -68,6 +68,7 @@ Camera * firstPersonCamera = NULL;
 MORPG * morpg = 0;
 
 List<Camera*> cameras;
+float testMultiplier = 1.f; // Should be 1.f by default, lower speeds up things.
 
 MHost * hostState = NULL;
 
@@ -104,6 +105,23 @@ MORPG::~MORPG()
 	world.Delete();
 }
 
+Character * MainTargetChar()
+{
+	Character * character = morpg->HUDCharacter();
+	Character * mt = character->prop->MainTarget();
+	if (mt == 0)
+		return 0;
+	return mt;
+}
+
+Entity * MainTarget()
+{
+	Character * character = morpg->HUDCharacter();
+	Character * mt = character->prop->MainTarget();
+	if (mt == 0)
+		return 0;
+	return mt->prop->owner;
+}
 
 /// Function when entering this state, providing a pointer to the previous StateMan.
 void MORPG::OnEnter(AppState * previousState)
@@ -123,7 +141,9 @@ void MORPG::OnEnter(AppState * previousState)
 	Graphics.QueueMessage(new GMSetCamera(mapPreviewCamera, CT_ROTATION, Vector3f()));
 	Graphics.QueueMessage(new GMSetCamera(mapPreviewCamera, CT_DISTANCE_FROM_CENTER_OF_MOVEMENT, 3.f));
 	Graphics.QueueMessage(new GMSetCamera(firstPersonCamera, CT_TRACKING_MODE, TrackingMode::FOLLOW_AND_LOOK_AT));
-	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_SMOOTHING, 0.5f)); 
+	Graphics.QueueMessage(new GMSetCamera(firstPersonCamera, CT_DISTANCE_FROM_CENTER_OF_MOVEMENT, 0.f));
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ROTATIONAL_SMOOTHNESS, 0.000001f));
+	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_SMOOTHING, 0.05f)); 
 	// Set it to follow and track us too.
 	
 	session = new MORPGSession();
@@ -224,11 +244,10 @@ void MORPG::ProcessMessage(Message * message)
 				// Open menu for it.
 				OpenSubIMenuMenu(TARGET_SKILLS);
 			}
-			else if (msg == "Attack")
-			{
-				// Attack! 
+			else if (msg == "Attack") // Attack! 
 				characterProp->Engage();
-			}
+			else if (msg == "Disengage")
+				characterProp->Disengage();
 			else if (msg == "Check")
 			{
 				if (characterProp->mainTarget == 0)
@@ -286,20 +305,47 @@ void MORPG::CreateDefaultBindings()
 	List<Binding*> & bindings = mapping->bindings;
 	mapping->bindings.Add(new Binding(Action::FromString("ToggleAutorun"), KEY::R));
 	mapping->bindings.Add(new Binding(Action::FromString("ToggleHeal"), KEY::H));
-	bindings.AddItem(new Binding(Action::FromString("NextTarget"), KEY::TAB));
-	bindings.AddItem(new Binding(Action::FromString("PreviousTarget"), List<int>(KEY::SHIFT, KEY::TAB)));
+	bindings.AddItem((new Binding(Action::FromString("NextTarget"), KEY::TAB))->SetActivateOnRepeat(true));
+	bindings.AddItem((new Binding(Action::FromString("PreviousTarget"), List<int>(KEY::SHIFT, KEY::TAB)))->SetActivateOnRepeat(true));
 	bindings.AddItem(new Binding(Action::FromString("Interact"), KEY::ENTER));
 	bindings.AddItem(new Binding(Action::FromString("OpenInputLine"), KEY::SPACE));
 }
 
 List<Interactable*> GetInteractablesOnScreen()
 {
+	// Check if in camera frustum.
+	Camera * cam = CameraMan.ActiveCamera();
+//	std::cout<<"\nCamera: "<<cam->name<<" pos"<<cam->Position();
+	Frustum f = cam->GetFrustum();
+	Vector3f camLeft = cam->LeftVector();
+	Vector3f camPosition = cam->Position();
 	// Get all for now.
 	List<Interactable *> ints;
 	for (int i = 0; i < world.interactables.Size(); ++i)
 	{
-		if (world.interactables[i]->targetable)
-			ints.AddItem(world.interactables[i]);
+		// If visible on screen or not.
+		Interactable * inter = world.interactables[i];
+		if (!inter->targetable)
+			continue;
+		Vector3f position = inter->Position();
+		int inside = f.PointInFrustum(position);
+		if (inside != Loc::INSIDE)
+			continue;
+		// By simple dot-product maths of belonging to left or right side of camera look direction.
+		inter->sortValue = camLeft.DotProduct((position - camPosition).NormalizedCopy());
+
+		bool added = false;
+		for (int j = 0; j < ints.Size(); ++j)
+		{
+			if (ints[j]->sortValue < inter->sortValue)
+			{
+				ints.Insert(inter, j);
+				added = true;
+				break;
+			}
+		}
+		if (!added)
+			ints.AddItem(inter);
 	}
 	return ints;
 }
@@ -308,37 +354,77 @@ void MORPG::NextTarget()
 {
 	// Grab all on screen?
 	List<Interactable*> ints = GetInteractablesOnScreen();
-	if (ints.Size() == 0)
-		this->characterProp->SetTarget(0);
 	Interactable * currT = characterProp->GetTarget();
-	if (currT == 0)
-		characterProp->SetTarget(ints[0]);
+	if (ints.Size() == 0)
+	{
+		this->characterProp->SetTarget(0);
+		Log("No targets in sight");
+		return;
+	}
+	else if (ints.Size() == 1 || currT == 0)
+	{
+		this->characterProp->SetTarget(ints[0]);
+		return;
+	}
 	for (int i = 0; i < ints.Size(); ++i)
 	{
 		if (ints[i] == currT)
 		{
 			Interactable * inter = ints[(i+1) % ints.Size()];
 			characterProp->SetTarget(inter);
+			return;
 		}
 	}
-	UpdateHUD();
+	// Grab first one or self.
+	characterProp->SetTarget(ints[0]);
 }
+
 void MORPG::PreviousTarget()
 {
 	// Grab previous?
 	List<Interactable*> ints = GetInteractablesOnScreen();
-	if (ints.Size() == 0)
-		this->characterProp->SetTarget(0);
 	Interactable * currT = characterProp->GetTarget();
+	if (ints.Size() == 0)
+	{
+		this->characterProp->SetTarget(0);
+		Log("No targets in sight");
+		return;
+	}
+	else if (ints.Size() == 1 || currT == 0)
+	{
+		this->characterProp->SetTarget(ints[0]);
+		return;
+	}
 	if (currT == 0)
 		characterProp->SetTarget(ints[0]);
 	for (int i = 0; i < ints.Size(); ++i)
 	{
 		if (ints[i] == currT)
-			characterProp->SetTarget(ints[(i-1) % ints.Size()]);
+		{
+			characterProp->SetTarget(ints[(i-1 + ints.Size()) % ints.Size()]);
+			return;
+		}
 	}
-	UpdateHUD();
+	// Grab first one or self.
+	characterProp->SetTarget(ints[0]);
 }
+
+/// Show with cool arrows, yes.
+Entity * targetArrowEntity = 0;
+void MORPG::OnTargetUpdated()
+{
+	if (targetArrowEntity == 0)
+		targetArrowEntity = MapMan.CreateEntity("TargetArrow", ModelMan.GetModel("TargetArrow.obj"), TexMan.GetTexture("0xAAAA33FF"));
+	Character * mtc = MainTargetChar();
+	// Attach position to other entity.
+	QueuePhysics(new PMSetEntity(targetArrowEntity, PT_PARENT, MainTarget()));
+	QueuePhysics(new PMSetEntity(targetArrowEntity, PT_INHERIT_POSITION_ONLY));
+	if (mtc)
+		QueuePhysics(new PMSetEntity(targetArrowEntity, PT_POSITION, Vector3f(0, 0.5f + mtc->representationScale.y * 2.f, 0)));
+	/// Make invisible if no target?
+	QueueGraphics(new GMSetEntityb(targetArrowEntity, GT_VISIBILITY, MainTarget() != NULL ? true : false));
+}
+
 
 
 /// Load map/zone by name
@@ -424,6 +510,11 @@ void MORPG::UpdateHUD()
 	QueueGraphics(new GMSetUIi("MP", GMUI::INTEGER_INPUT, character->stats->mp));
 	QueueGraphics(new GMSetUIs("MaxHP", GMUI::TEXT, "/ "+String(character->stats->maxHp)));
 	QueueGraphics(new GMSetUIs("MaxMP", GMUI::TEXT, "/ "+String(character->stats->maxMp)));
+	UpdateTargetInHUD();
+}
+
+void MORPG::UpdateTargetInHUD() // Target sub-section of HUD.
+{
 	QueueGraphics(new GMSetUIs("Target", GMUI::TEXT, character->prop->mainTarget? ("Target: "+ character->prop->mainTarget->name) : "No target"));
 }
 
@@ -433,9 +524,10 @@ void MORPG::OpenInteractionMenu()
 {
 	if (hudCharacter == 0 || iMenuOpen)
 		return;
+	// Don't auto grab target. If no target, grab self if anything.
 	if (hudCharacter->mainTarget == 0)
 	{
-		NextTarget();
+		hudCharacter->mainTarget = hudCharacter->ch;
 		return;
 	}
 	iMenuOpen = true;
@@ -444,7 +536,10 @@ void MORPG::OpenInteractionMenu()
 	List<String> buttons;
 	if (hudCharacter->MainTarget()->characterType == Character::FOE)
 	{
-		buttons.AddItem("Attack");
+		if (hudCharacter->IsAttacking())
+			buttons.AddItem("Disengage");
+		else
+			buttons.AddItem("Attack");
 		buttons.AddItem("Target skills");
 	}
 	buttons.AddItem("Check");
@@ -458,11 +553,13 @@ void MORPG::OpenInteractionMenu()
 	/// Open iMenu.
 	QueueGraphics(new GMPushUI("IMenu", hud));
 }
+
 void MORPG::CloseInteractionMenu()
 {
 	QueueGraphics(new GMPopUI("IMenu", hud));
 	iMenuOpen = false;
 }
+
 void MORPG::OpenSubIMenuMenu(int whichMenu)
 {
 	if (subMenuOpen >= 0)
@@ -484,6 +581,7 @@ void MORPG::Log(CTextr text)
 /// Chat or command line.
 void MORPG::EvaluateLine(String cmd)
 {
+	Character * c =	HUDCharacter();
 	std::cout<<"\nCmd: "<<cmd;
 	if (!cmd.StartsWith("/"))
 		// Just send it to log for now.
@@ -496,5 +594,18 @@ void MORPG::EvaluateLine(String cmd)
 	if (cmd.StartsWith("/setwpl"))
 	{
 		int lvl = cmd.Tokenize(" ")[1].ParseInt(); HUDCharacter()->SetWeaponTrainingLevel(HUDCharacter()->stats->weaponType, lvl);	HUDCharacter()->UpdateGearStatsToCurrentGear(); Log("Weapon traning level set to "+String(lvl)+".");
+	}
+	if (cmd.StartsWith("/setcls"))
+	{
+		int which = GetClassByName(cmd.Tokenize(" ")[1]); if (which < 0) {Log("Bad class given. Retry."); return; }HUDCharacter()->currentClassLvl.first = which; HUDCharacter()->UpdateBaseStatsToClassAndLevel(); Log("Class set to "+ClassFullName(which)+". Level retained.");
+	}
+	if (cmd.StartsWith("/revive"))
+	{
+		c->prop->Revive();
+	}
+	if (cmd.StartsWith("/testspd"))
+	{
+		testMultiplier = cmd.Tokenize(" ")[1].ParseFloat();
+		ClampFloat(testMultiplier, 0.1f, 3.f);
 	}
 }

@@ -37,6 +37,8 @@ int Foe::UpdateBaseStatsAlternative()
 			strL = 1.1f; vitL = 2.2f; dmgL = 1.f; attL = 2.f; hpL = mpL = 3; hppL = 1.3f; mppL = 0; defL = 3.7f; 
 			if (l < 3) { species = TINY_SHIELDLING; name = "Tiny shieldling";}
 			else if (l < 11) {	species = SMALL_SHIELDLING; name = "Small shieldling"; }
+			representationScale.x = representationScale.z = 0.5f + 0.01f*l;
+			representationScale.y = 0.1f + 0.02f * MaximumFloat(l, 0);
 			break; // Per L
 		default:
 			assert(false);

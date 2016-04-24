@@ -8,3 +8,8 @@ void Interactable::BecomeUntargetable()
 {
 	targetable = false;
 }
+
+Vector3f Interactable::Position()
+{
+	return position;	
+}
