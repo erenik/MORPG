@@ -7,12 +7,13 @@
 #include "Family.h"
 
 Foe::Foe(int family, int level)
-	: Character(), family(family)
+	: Character(CharacterType::FOE), family(family)
 {
-	characterType = Character::FOE;
+	characterType = CT::FOE;
 	/// Inherit name from family or species.
 	name = "Foe";
 	currentClassLvl.second = level;
+	foe = true;
 }
 
 

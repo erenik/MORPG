@@ -21,10 +21,13 @@ class Entrance;
 
 class Zone : public Map
 {
+	int id;
 public:
-	Zone();
+	Zone(String name = "Zone");
 	virtual ~Zone();
 	void Nullify();
+	int ID() const { return id;};
+	void SetName(String name);
 
 	/// Usually the most important building. Use a command to add the entity to a map, as that is not done in this function.
 	Entity * CreateWorldMapRepresentation();
@@ -32,14 +35,24 @@ public:
 	/// Places room into the zone, adding it to the grid and list.
 	bool Place(Room * room);
 
+	/// Simulate it. Clear up old stuff as needed.
+	void Process(int timeInMs);
+
+	/// Adds character to zone.
+	void AddCharacter(Character * c);
+	void RemoveCharacter(Character * c);
+	void RemoveCharacters(List<Character *> cs);
 	// Registers all entities for display and makes the world-map camera active.
 	void MakeActive();
+	void MakeInactive();
 
+	/// Called host-side. Creates map with all entities n properties inside for simulation.
+	void CreateMap();
 	/// Takes all models this zone is composed of and creates it for you. Will also create all characters within (hopefully including you!)
 	void CreateEntities();
 
-	String name;
-	int id;
+	// Already name avaialble in Map::
+//	String name;
 
 	/// Position on the grid/world-map.
 	Vector3i position;
@@ -64,6 +77,7 @@ public:
 	int numInhabitants;
 	/// Current characters within this zone.
 	List<Character*> characters;
+	List<Interactable*> interactables; // All interactables. Includes all characters.
 	/// Characters which regard this zone as their home, and stay here most of the time (for NPCs, anyway).
 	List<Character*> inhabitants;
 	/// Neighbour-zones.
@@ -107,7 +121,12 @@ public:
 	/// If it has pre-built buildings and inhabitants. The settlement need not cover much at all of the zone's area.
 	bool hasSettlement;
 
+//	Map * GetMap() const {
+	//	return map;
+//	};
+
 protected:
+//	Map * map; 
 	/// All entities which comprise the "base" along which we will walk and physicall interact with on the most part. 
 //	List<CompactEntity*> compactBaseEntities;
 

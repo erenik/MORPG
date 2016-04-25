@@ -7,6 +7,9 @@
 
 #include "Zone.h"
 
+#include "Character/NPC.h"
+#include "Character/Foe.h"
+
 #include "Model/ModelManager.h"
 #include "TextureManager.h"
 
@@ -14,7 +17,7 @@ ZoneGenerator * zoneGenerator = NULL;
 
 WorldGenerator::WorldGenerator()
 {
-	size = Vector3i(20, 5, 20);
+	size = Vector3i(5, 2, 5); // 5x5 world.
 	water = 0.2f;
 	waterDepth = -1.f;
 	waterLevel = 0;
@@ -56,10 +59,9 @@ bool WorldGenerator::GenerateWorld(World & worldToBeGenerated, bool newRandomSee
 	{
 		for (int z = 0; z < size.z; ++z)
 		{
-			Zone * zone = new Zone();
+			Zone * zone = new Zone("X"+String(x)+" Z"+String(z));
 			Vector3i position = Vector3i(x,0,z);
 			zone->position = position;
-			zone->name = "X"+String(x)+" Z"+String(z);
 			world->zones.Add(zone);
 			assert(world->zoneMatrix.At(position) == 0);
 			world->zoneMatrix.Set(position, zone);
@@ -84,6 +86,8 @@ bool WorldGenerator::GenerateWorld(World & worldToBeGenerated, bool newRandomSee
 	Print("\nRaw generation complete");
 	EvaluateZoneTypes();
 	PlaceSettlements();
+	/// Populate with characaters.
+	Populate();
 	return true;
 }
 
@@ -108,7 +112,7 @@ bool WorldGenerator::GenerateSettlement(Zone * inZone)
 			zoneGenerator = new ZoneGenerator();
 		zoneGenerator->GenerateZone(inZone);
 	}
-	this->CreateCharacters(inZone);
+	this->CreateBuildings(inZone);
 	return true;
 }
 
@@ -117,7 +121,7 @@ void WorldGenerator::MarkWater()
 	/// Mark water
 //	assert(water < 1.f);
 	int numZones = world->zones.Size();
-	int numWaterTiles = water * numZones;
+	int numWaterTiles = (int) (water * numZones);
 	int waterTilesCreated = 0;
 
 	Random waterRandom = randomSeed;
@@ -267,6 +271,38 @@ void WorldGenerator::EvaluateZoneTypes()
 	}
 }
 
+Random popRand;
+
+/// Populate with characaters.
+void WorldGenerator::Populate()
+{
+	// Add some default characters.
+	for (int j = 0; j < world->zones.Size(); ++j)
+	{
+		Zone * z = world->zones[j];
+		// For starters, only NPCs in settlements.
+		if (z->hasSettlement)
+		{
+			z->AddCharacter(NPC::Healer());
+			z->AddCharacter(NPC::Shop());
+			z->AddCharacter(NPC::Talker());
+		}	
+		else 
+		{
+			// Add some spawn-zones for Foes. These will be re-populated later if some are killed.
+			/// Populate with some monsters too?
+			for (int i = 0; i < 10; ++i)
+			{
+				Character * foe = new Foe(SHIELDLING, (int) (popRand.Randf() * 7.f - 4.f));
+				Vector3f position = Vector3f(popRand.Randf(20)-10,0,popRand.Randf(20)-10); 
+				foe->position = position;
+				z->AddCharacter(foe);
+			}
+		}
+	}
+}
+
+
 /// Places settlements on decent zones. Will vary on zone type how probable it is.
 void WorldGenerator::PlaceSettlements()
 {
@@ -308,7 +344,7 @@ void WorldGenerator::PlaceSettlements()
 	}
 }
 
-void WorldGenerator::CreateCharacters(Zone * forZone)
+void WorldGenerator::CreateBuildings(Zone * forZone)
 {
 	if (forZone->buildingSlots.Size() == 0)
 		GenerateBuildingSlots(forZone);

@@ -4,6 +4,14 @@
 
 #include "Interactable.h"
 
+Interactable::Interactable()
+{ 
+	targetable = true; representationScale = Vector3f(1,1,1); 
+	sell = talk = heal = false;
+	foe = false;
+};
+
+
 void Interactable::BecomeUntargetable()
 {
 	targetable = false;

@@ -9,10 +9,12 @@
 #include "Stats.h"
 #include "App/MORPG.h"
 
+#include "World/Zone.h"
 #include "Maps/MapManager.h"
 #include "Model/ModelManager.h"
 #include "TextureManager.h"
 #include "Entity/Entity.h"
+#include "Entity/EntityManager.h"
 
 #include "Graphics/Messages/GMCamera.h"
 #include "Physics/Messages/PhysicsMessage.h"
@@ -56,7 +58,7 @@ int TNLWeapon(int level)
 
 int Character::idEnumerator = 0;
 
-Character::Character()
+Character::Character(int type)
 	: id(idEnumerator++)
 {
 	currentClassLvl = std::pair<char, char>(CLASSLESS, 1);
@@ -67,8 +69,8 @@ Character::Character()
 	statsWithBuffs = new Stats();
 	stats = statsWithBuffs;
 	prop = 0;
-
-	characterType = NPC;
+	zone = 0;
+	characterType = type;
 }
 
 Character::~Character()
@@ -78,10 +80,23 @@ Character::~Character()
 	delete statsWithBuffs;
 }
 
-void Character::Spawn(ConstVec3fr position)
+/// Spawns in map. Must have map assigned first.
+void Character::Spawn(ConstVec3fr position, Zone * intoZone)
 {
+	/// Still spawned since earlier. Despawn first?
+	if (zone)
+	{
+		Despawn();	
+	}
+	assert(characterType != CT::BAD_TYPE);
+	if (intoZone && zone == 0)
+		zone = intoZone;
+	assert(zone);
+	zone->AddCharacter(this); // Add character to zone too.
+
 	// update all stats right before spawning.
 	UpdateBaseStatsToClassAndLevel();
+
 	/// Copy hp and mp from max, since spawning.
 	stats->hp = (float) stats->maxHp;
 	stats->mp = (float) stats->maxMp;
@@ -90,20 +105,33 @@ void Character::Spawn(ConstVec3fr position)
 	String tex = "0xAA";
 	switch(characterType)
 	{
-		case NPC: tex = "0xAA"; break;
-		case FOE: tex = " 0xFF7F00"; break;
-		case PLAYER: tex = "0xEE"; break;
+		case CT::NPC: tex = "0xAA"; break;
+		case CT::FOE: tex = " 0xFF7F00"; break;
+		case CT::PLAYER: tex = "0xEE"; break;
 	default:
 		assert(false);
 	}
 
 	// Attach ze propororoty to bind the entity and the player.
-	Entity * entity = MapMan.CreateEntity(name, ModelMan.GetModel("Characters/TestCharacter.obj"), TexMan.GetTexture(tex), position);
+	Entity * entity = EntityMan.CreateEntity(name, ModelMan.GetModel("Characters/TestCharacter.obj"), TexMan.GetTexture(tex));
+	entity->SetPosition(position);
+	MapMan.AddEntity(entity, zone);
 	// Adjust size of representation.
 	QueuePhysics(new PMSetEntity(entity, PT_SET_SCALE, representationScale));
-	entity->properties.Add(new CharacterProperty(entity, this));
 	QueuePhysics(new PMSetEntity(entity, PT_PHYSICS_TYPE, PhysicsType::DYNAMIC));
-	
+
+	// Prop
+	prop = new CharacterProperty(entity, this);
+	entity->properties.Add(prop);
+}
+
+// Despawns from previous zone.
+void Character::Despawn()
+{
+	// Remove from zone if not already done so?
+	zone->RemoveCharacter(this);
+	zone = 0;
+	MapMan.DeleteEntity(prop->owner); // Assuming we have an entity from before, re-use it? or not.
 }
 
 void Character::SetCameraFocus()
@@ -229,7 +257,7 @@ void Character::UpdateBaseStatsToClassAndLevel()
 		UpdateBaseStatsForClass();
 
 	/// Update gear data.
-	if (characterType == FOE)
+	if (characterType == CT::FOE)
 		UpdateStatsWithBuffs();
 	else
 		UpdateGearStatsToCurrentGear();
@@ -387,7 +415,7 @@ void Character::UpdateGearStatsToCurrentGear()
 	}
 	/// Now that we know what weapon we have, apply unarmed amage bonus straight to damage.
 	if (s.weaponType == UNARMED)
-		s.damage += s.unarmedDMGBonus;
+		s.damage += (int) s.unarmedDMGBonus;
 
 	UpdateStatsWithBuffs();
 }

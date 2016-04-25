@@ -36,8 +36,6 @@ CharacterProperty::CharacterProperty(Entity * characterEntity, Character * assoc
 	mainTarget = 0;
 	attackCooldown = 0;
 	deleteMe = false;
-	/// Associate property too.
-	ch->prop = this;
 	movementEnabled = true;
 }
 
@@ -58,7 +56,7 @@ void CharacterProperty::Process(int timeInMs)
 	if (dead)
 	{
 		/// Remove from targets n stuffs.
-		if (ch->characterType != Character::PLAYER)
+		if (ch->characterType != CT::PLAYER)
 		{
 			ch->BecomeUntargetable();
 
@@ -165,7 +163,7 @@ void MCharProp::HealTick()
 /// Heals, notifies GUI etc. as needed. Float in order to work with regen, etc.
 void MCharProp::HealHp(float amount)
 {
-	int hp = ch->stats->hp;
+	int hp = (int) ch->stats->hp;
 	ch->stats->hp += amount;
 	ClampFloat(ch->stats->hp, 0, (float)ch->stats->maxHp);
 	if (int(ch->stats->hp) > hp)
@@ -173,7 +171,7 @@ void MCharProp::HealHp(float amount)
 }
 void MCharProp::HealMp(float amount)
 {
-	int mp = ch->stats->mp;
+	int mp = (int) ch->stats->mp;
 	ch->stats->mp += amount;
 	ClampFloat(ch->stats->mp, 0, (float)ch->stats->maxMp);
 	if (int(ch->stats->mp) > mp)
@@ -235,7 +233,7 @@ bool MCharProp::Attack()
 	ClampFloat(strDiff, int(-0.5f * weaponDamage), int(0.5f * weaponDamage));
 	weaponDamage += strDiff;
 	/// Apply attack vs. defense.
-	float attack = mStats->Attack();
+	float attack = (float) mStats->Attack();
 	// Make bell-curve somehow?
 	float attDiff = attack / (float)tStats->Defense();
 	int damage = weaponDamage;
@@ -265,7 +263,7 @@ bool MCharProp::Attack()
 		multiplier += 1.f; // Add 1x to multiplier, should be sufficient.
 		multiplier *= (100.f +  mStats->criticalDmgBonus) / 100.f; // Add extra percentage based bonuses.
 	}
-	damage *= multiplier;
+	damage = int(damage * multiplier);
 	ClampFloat(damage, 1, 9999); // min/max dmg.
 	tStats->hp -= damage;
 	if (target == morpg->HUDCharacter())
@@ -286,7 +284,7 @@ bool MCharProp::Attack()
 	}
 	// Notify.
 	morpg->Log(Text((isCritical? "Critical! " : "") + ch->name+" hits "+target->name+" for "+String(damage)+" damage."+addedStr, 
-		(target->characterType == Character::FOE)? 0xFFFFFFFF : 0xFF7F00FF));
+		(target->foe)? 0xFFFFFFFF : 0xFF7F00FF));
 	if (ch == morpg->HUDCharacter()) // Update HP if damaged.
 		morpg->UpdateHPInHUD();
 	
@@ -298,7 +296,7 @@ bool MCharProp::Attack()
 	if (tStats->hp < 0)
 	{
 		morpg->Log(Text(ch->name+" defeats "+target->name+"!", 
-			(target->characterType == Character::FOE) ? 0xFFD700FF : 0x8B0000FF));
+			target->foe ? 0xFFD700FF : 0x8B0000FF));
 		tStats->hp = 0;
 		/// Calculate EXP to receive.
 		int expGained = 200 * pow(1.2f, (float)lDiff);
@@ -375,7 +373,7 @@ void MCharProp::AddEnmityFor(Character * character, int amount)
 	{
 		if (mainTarget == 0)
 			mainTarget = character;
-		if (ch->characterType != Character::PLAYER) // Auto-engage if non-player
+		if (ch->characterType != CT::PLAYER) // Auto-engage if non-player
 			Engage();
 	}
 }

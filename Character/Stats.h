@@ -6,6 +6,7 @@
 #define STAT_H
 
 #include "MathLib/AEMath.h"
+#include "MathLib/Vector3f.h"
 
 struct Slayer 
 {

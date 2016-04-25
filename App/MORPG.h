@@ -16,6 +16,8 @@ extern MORPGSession * session;
 
 extern float testMultiplier;
 
+Zone * CurrentZone();
+
 class MORPG : public AppState 
 {
 public:
@@ -40,8 +42,13 @@ public:
 
 	/// Load map/zone. Leave old one. 
 	virtual void EnterZone(Zone * zone);
+	virtual void ZoneTo(Zone * zone);
+	Zone * RandomZone();
 
 	Character * HUDCharacter();
+
+	// 
+	void CreateTestCharacter();
 
 	/// UI stuffs.
 	void OpenHUD(Character * forCharacter);
@@ -65,8 +72,11 @@ public:
 	/// Show with cool arrows, yes.
 	void OnTargetUpdated();
 
+	/// Closes UI, repoints pointers.
+	void PrepareForDeletion();
+	/// Sets for both input and camera.
+	void SetFocusCharacter(Character * ch);
 private:
-
 	UserInterface * hud;
 	void NextTarget();
 	void PreviousTarget();
@@ -76,9 +86,7 @@ private:
 	int subMenuOpen; // -1 when none open.
 
 	/// The character property of the character we are currently controlling (both camera focus and input-focus!)
-	CharacterProperty * characterProp;
-	Character * character;
-#define hudCharacter characterProp
+	Character * ch;
 };
 
 extern MORPG * morpg;

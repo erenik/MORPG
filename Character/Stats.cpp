@@ -10,7 +10,11 @@ Stats::Stats()
 {	// Default values.
 	movementSpeed = 2.f; 
 	movementSpeedBonus = 0;
-	stunDurationMs = disarmDurationMs = paralyzedMs = 0; regen = refresh = 0.f; hp = maxHp = 13; mp = maxMp = 0;
+	stunDurationMs = disarmDurationMs = paralyzedMs = 0; regen = refresh = 0.f; 
+	hp = 13.f;
+	maxHp = 13; 
+	mp = 0.f;
+	maxMp = 0;
 	str = vit = mag = 10;
 	accuracy = 95.f; // default 95% acc (60% if 0 weapon skill).
 	evasion = 0; // is bonus, default miss is the same as evade.
@@ -44,9 +48,9 @@ Stats::Stats()
 
 int Stats::Attack()
 {
-	return MaximumFloat(attack * (100+attackBonus)/100.f, 1);
+	return (int)MaximumFloat(attack * (100+attackBonus)/100.f, 1);
 }
 int Stats::Defense()
 {
-	return MaximumFloat(defense * (100+defenseBonus)/100.f, 1);
+	return (int)MaximumFloat(defense * (100+defenseBonus)/100.f, 1);
 }

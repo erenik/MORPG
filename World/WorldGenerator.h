@@ -51,8 +51,11 @@ private:
 	void EvaluateZoneTypes();
 	/// Places settlements on decent zones. Will vary on zone type how probable it is.
 	void PlaceSettlements();
-	/// Creates characters to live in the zone.
-	void CreateCharacters(Zone * forZone);
+
+	/// Populate all zones with characaters.
+	void Populate();
+	/// Creates buildings in the zone.
+	void CreateBuildings(Zone * forZone);
 	// Population 1 to 10.
 	void CreateFamilyZone(Zone * forZone);
 	// Population 11 to 100.

@@ -3,7 +3,7 @@
 /// Default character you would battle against.
 
 #include "Character.h"
-
+#include "Family.h"
 
 class Foe : public Character
 {

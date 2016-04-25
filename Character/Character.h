@@ -13,11 +13,22 @@
 #include "Buff.h"
 #include "Interactable.h"
 
+class Zone;
 class Buff;
 class Item;
 struct Stats;
 class CharacterProperty;
 
+#define CT CharacterType
+namespace CharacterType 
+{
+	enum {
+		BAD_TYPE,
+		PLAYER,
+		FOE,
+		NPC,
+	};
+};
 enum weaponTypes 
 {
 	UNARMED,
@@ -37,19 +48,16 @@ class Character : public Interactable
 private:
 	static int idEnumerator;
 public:
-	Character(); // Generates unique ID. Host-only constructor.
+	Character(int type = CT::BAD_TYPE); // Generates unique ID. Host-only constructor.
 	virtual ~Character();
 	const int id; // Unique identifier.
 	int ID() const { return id; };
 
 	int characterType;
-	enum {
-		PLAYER,
-		FOE,
-		NPC,
-	};
-	/// Spawns entity + property.
-	void Spawn(ConstVec3fr position);
+
+	/// Spawns in map. Must have Zone assigned first.
+	void Spawn(ConstVec3fr position, Zone * intoZone = 0);
+	void Despawn(); // Despawns from previous zone.
 	void SetCameraFocus();
 
 	/// Where.
@@ -122,6 +130,9 @@ public:
 	List<std::pair<int,int>> skillCooldownsMs; // Cooldown of skills, in milliseconds. If not in array, skill should be executable.
 	Stats * baseStats, * statsWithGear; // stats should link to statsWithBuffs
 	Stats * statsWithBuffs, * stats;
+	
+	/// Zone. Need to set for spawning.
+	Zone * zone;
 
 	/// yarr.
 	CharacterProperty * prop;

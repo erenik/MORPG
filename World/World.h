@@ -75,9 +75,8 @@ public:
 	/// All zones which have people settled in.
 	List<Zone*> settlements;
 	Matrix<Zone*> zoneMatrix;
-	/// All characters in the world.
-	List<Character*> characters;
-	List<Interactable*> interactables; // Anything interactable.
+	/// All player characters in the world. May be logged out and thus not present in any zone.
+	List<Character*> pcs;
 	/// All quests in the world.
 	List<Quest*> quests;
 };

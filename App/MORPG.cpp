@@ -70,6 +70,7 @@ MORPG * morpg = 0;
 
 List<Camera*> cameras;
 float testMultiplier = 1.f; // Should be 1.f by default, lower speeds up things.
+List<Text> chatLogEntries; // List of log messages. Stored here for when HUD disappears at times.
 
 MHost * hostState = NULL;
 
@@ -92,8 +93,7 @@ Random morpgRand;
 
 MORPG::MORPG()
 {
-	characterProp = NULL;
-	hudCharacter = 0;
+	ch = NULL;
 	hudOpen = false;
 	iMenuOpen = false;
 	morpg = this;
@@ -122,6 +122,12 @@ Entity * MainTarget()
 	if (mt == 0)
 		return 0;
 	return mt->prop->owner;
+}
+
+Zone * currentZone = 0; // 0 initially
+Zone * CurrentZone()
+{
+	return currentZone;
 }
 
 /// Function when entering this state, providing a pointer to the previous StateMan.
@@ -167,6 +173,7 @@ void MORPG::OnEnter(AppState * previousState)
 	script->Load("OnEnter.ini");
 	ScriptMan.PlayScript(script);
 //	MesMan.QueueMessages(lines);
+
 }
 
 /// Main processing function, using provided time since last frame.
@@ -207,7 +214,7 @@ void MORPG::ProcessMessage(Message * message)
 				String input = ssm->value;
 				EvaluateLine(input);
 				/// Hide input box thingy.
-				QueueGraphics(new GMPopUI("InputLine", hud));
+				QueueGraphics(new GMPopUI("UIInputLine", 0));
 			}
 			break;
 		};
@@ -227,25 +234,25 @@ void MORPG::ProcessMessage(Message * message)
 			else if (msg == "ToggleAutorun")
 			{
 				// Get our player! o.o
-				if (characterProp)
-					characterProp->ToggleAutorun();
+				if (ch->prop)
+					ch->prop->ToggleAutorun();
 			}
-			else if (msg == "ToggleHeal" && characterProp)
-				characterProp->ToggleHeal();
-			else if (msg == "NextTarget" && characterProp)
+			else if (msg == "ToggleHeal" && ch->prop)
+				ch->prop->ToggleHeal();
+			else if (msg == "NextTarget" && ch->prop)
 				NextTarget();
-			else if (msg == "PreviousTarget" && characterProp)
+			else if (msg == "PreviousTarget" && ch->prop)
 				PreviousTarget();
-			else if (msg == "Interact" && hudCharacter)
+			else if (msg == "Interact" && ch->prop)
 				OpenInteractionMenu();
 			else if (msg == "IMenuClosed")
 				iMenuOpen = false;
 			else if (msg == "Skills" || msg == "Combat skills")
 				OpenSubIMenuMenu(COMBAT_SKILLS);
 			else if (msg == "Attack") // Attack! 
-				characterProp->Engage();
+				ch->prop->Engage();
 			else if (msg == "Disengage")
-				characterProp->Disengage();
+				ch->prop->Disengage();
 			else if (msg == "CloseSubIMenu")
 				CloseSubIMenuMenu();
 			else if (msg == "TargetSelf")
@@ -261,10 +268,10 @@ void MORPG::ProcessMessage(Message * message)
 			}
 			else if (msg == "Check")
 			{
-				if (characterProp->mainTarget == 0)
+				if (ch->prop->mainTarget == 0)
 					return;
 				// For characters..
-				int lvlDiff = characterProp->MainTarget()->currentClassLvl.second - character->currentClassLvl.second;
+				int lvlDiff = ch->prop->MainTarget()->currentClassLvl.second - ch->currentClassLvl.second;
 				String end;
 				if (lvlDiff == 0)
 					end = "like an even match";
@@ -272,7 +279,7 @@ void MORPG::ProcessMessage(Message * message)
 					end = "tough";
 				else if (lvlDiff > -3) end = "like a decent challenge";
 				else end = "like easy prey.";
-#define TARGET_NAME characterProp->MainTarget()->name
+#define TARGET_NAME ch->prop->MainTarget()->name
 				Log("The "+TARGET_NAME+" seems "+end+".");
 			}
 			else if (msg.Contains("NextCamera"))
@@ -299,10 +306,10 @@ void MORPG::ProcessMessage(Message * message)
 			}
 			else if (msg == "OpenInputLine")
 			{
-				QueueGraphics(new GMSetUIs("InputLine", GMUI::STRING_INPUT_TEXT, ""));
-				QueueGraphics(new GMPushUI("InputLine", hud));
+				QueueGraphics(new GMPushUI("gui/UIInputLine.gui"));
 				/// Make it active for input?
-				QueueGraphics(new GMSetUIb("InputLine", GMUI::ACTIVE, true, hud));
+				QueueGraphics(new GMSetUIs("InputLine", GMUI::STRING_INPUT_TEXT, ""));
+				QueueGraphics(new GMSetUIb("InputLine", GMUI::ACTIVE, true));
 			}
 			break;
 		}
@@ -332,11 +339,12 @@ List<Interactable*> GetInteractablesOnScreen()
 	Vector3f camLeft = cam->LeftVector();
 	Vector3f camPosition = cam->Position();
 	// Get all for now.
+	List<Interactable*> localInts = CurrentZone()->interactables;
 	List<Interactable *> ints;
-	for (int i = 0; i < world.interactables.Size(); ++i)
+	for (int i = 0; i < localInts.Size(); ++i)
 	{
 		// If visible on screen or not.
-		Interactable * inter = world.interactables[i];
+		Interactable * inter = localInts[i];
 		if (!inter->targetable)
 			continue;
 		Vector3f position = inter->Position();
@@ -366,16 +374,16 @@ void MORPG::NextTarget()
 {
 	// Grab all on screen?
 	List<Interactable*> ints = GetInteractablesOnScreen();
-	Interactable * currT = characterProp->GetTarget();
+	Interactable * currT = ch->prop->GetTarget();
 	if (ints.Size() == 0)
 	{
-		this->characterProp->SetTarget(0);
+		ch->prop->SetTarget(0);
 		Log("No targets in sight");
 		return;
 	}
 	else if (ints.Size() == 1 || currT == 0)
 	{
-		this->characterProp->SetTarget(ints[0]);
+		ch->prop->SetTarget(ints[0]);
 		return;
 	}
 	for (int i = 0; i < ints.Size(); ++i)
@@ -383,42 +391,42 @@ void MORPG::NextTarget()
 		if (ints[i] == currT)
 		{
 			Interactable * inter = ints[(i+1) % ints.Size()];
-			characterProp->SetTarget(inter);
+			ch->prop->SetTarget(inter);
 			return;
 		}
 	}
 	// Grab first one or self.
-	characterProp->SetTarget(ints[0]);
+	ch->prop->SetTarget(ints[0]);
 }
 
 void MORPG::PreviousTarget()
 {
 	// Grab previous?
 	List<Interactable*> ints = GetInteractablesOnScreen();
-	Interactable * currT = characterProp->GetTarget();
+	Interactable * currT = ch->prop->GetTarget();
 	if (ints.Size() == 0)
 	{
-		this->characterProp->SetTarget(0);
+		this->ch->prop->SetTarget(0);
 		Log("No targets in sight");
 		return;
 	}
 	else if (ints.Size() == 1 || currT == 0)
 	{
-		this->characterProp->SetTarget(ints[0]);
+		this->ch->prop->SetTarget(ints[0]);
 		return;
 	}
 	if (currT == 0)
-		characterProp->SetTarget(ints[0]);
+		ch->prop->SetTarget(ints[0]);
 	for (int i = 0; i < ints.Size(); ++i)
 	{
 		if (ints[i] == currT)
 		{
-			characterProp->SetTarget(ints[(i-1 + ints.Size()) % ints.Size()]);
+			ch->prop->SetTarget(ints[(i-1 + ints.Size()) % ints.Size()]);
 			return;
 		}
 	}
 	// Grab first one or self.
-	characterProp->SetTarget(ints[0]);
+	ch->prop->SetTarget(ints[0]);
 }
 
 /// Show with cool arrows, yes.
@@ -427,6 +435,10 @@ void MORPG::OnTargetUpdated()
 {
 	if (targetArrowEntity == 0)
 		targetArrowEntity = MapMan.CreateEntity("TargetArrow", ModelMan.GetModel("TargetArrow.obj"), TexMan.GetTexture("0xAAAA33FF"));
+	// Unregister and re-register so it lands on the right map?
+	MapMan.RemoveEntity(targetArrowEntity);
+	MapMan.AddEntity(targetArrowEntity);
+
 	Character * mtc = MainTargetChar();
 	// Attach position to other entity.
 	QueuePhysics(new PMSetEntity(targetArrowEntity, PT_PARENT, MainTarget()));
@@ -437,52 +449,38 @@ void MORPG::OnTargetUpdated()
 	QueueGraphics(new GMSetEntityb(targetArrowEntity, GT_VISIBILITY, MainTarget() != NULL ? true : false));
 }
 
+void MORPG::PrepareForDeletion()
+{
+	this->CloseInteractionMenu();
+	SetFocusCharacter(0);
+	currentZone = 0;
+}
+
+/// Sets for both input and camera.
+void MORPG::SetFocusCharacter(Character * newCh)
+{
+	if (ch)
+	{
+		// Lose focus.
+		ch->prop->inputFocus = false;
+	}
+	this->ch = newCh;
+	// o-o
+	ch->SetCameraFocus();
+	ch->prop->inputFocus = true;
+}
 
 
 /// Load map/zone by name
 void MORPG::EnterZone(Zone * zone)
 {
-	// Detach cameras.
-	// .. TODO
+	/// Unload previous zone, if any.
+	if (currentZone)
+		currentZone->MakeInactive();
+	currentZone = zone; 
+	if (zone)
+		zone->MakeActive();
 
-	/// Decide format and stuff later.
-	/// Create a test map for now.
-	/// First clear ALL entities.
-	MapMan.DeleteAllEntities();
-
-	// Test-level of doom >:)
-	bool test = true;
-	if (test)
-	{
-		// Create the test level..!
-		MapMan.CreateEntity("Base", ModelMan.GetModel("Zones/Test.obj"), TexMan.GetTexture("White"));
-
-		/// o-o...
-		character = new PC();
-		world.characters.Add(character);
-		world.interactables.AddItem(character);
-		// Attach ze propororoty to bind the entity and the player.
-		character->Spawn(Vector3f(0,0,0));
-		character->SetCameraFocus();
-
-		OpenHUD(character);
-		// Enable steering!
-		characterProp->inputFocus = true;
-
-
-		/// Populate with some monsters too?
-		for (int i = 0; i < 20; ++i)
-		{
-			Character * foe = new Foe(SHIELDLING, (int) (morpgRand.Randf() * 7.f - 4.f));
-			world.characters.Add(foe);
-			world.interactables.AddItem(foe);
-			Vector3f position = Vector3f(morpgRand.Randf(20)-10,0,morpgRand.Randf(20)-10); 
-			foe->Spawn(position);
-		}
-		
-
-		return;
-	}
 	/// Load the base/zone model(s).
 	if (zone)
 	{
@@ -490,16 +488,41 @@ void MORPG::EnterZone(Zone * zone)
 	}
 	else 
 	{
-	}
-	
+	}	
 	/// Create the characters within.
+}
+
+void MORPG::ZoneTo(Zone * zone)
+{
+	// Open other zone.
+	EnterZone(zone);
+	/// If we had a previously created host/test character, move it there too.
+	if (ch)
+	{
+		ch->Spawn(Vector3f(), zone);
+		// Set input and camera focus for control.
+		SetFocusCharacter(ch);
+		Log("Entering zone "+zone->Name());
+	}
+	if (hudOpen)
+	{
+		// Re-fill logg.
+		QueueGraphics(new GMSetUIt("ChatLog", GMUI::LOG_FILL, chatLogEntries));
+	}
+}
+
+Zone * MORPG::RandomZone()
+{
+	Random rz;
+	int index = rz.Randi(world.zones.Size()) % world.zones.Size();
+	Zone * zone = world.zones[index];
+	std::cout<<"\nRandom zone: "<<zone->Name();
+	return zone;
 }
 
 Character * MORPG::HUDCharacter() 
 { 
-	if (characterProp)
-		return characterProp->ch;
-	return 0;
+	return ch;
 }
 
 
@@ -507,7 +530,7 @@ Character * MORPG::HUDCharacter()
 void MORPG::OpenHUD(Character * forCharacter)
 {
 	hudOpen = true;
-	characterProp = forCharacter->prop;
+	ch->prop = forCharacter->prop;
 	hud = new UserInterface();
 	hud->Load("gui/HUD.gui");
 	QueueGraphics(new GMSetUI(hud));
@@ -516,55 +539,57 @@ void MORPG::OpenHUD(Character * forCharacter)
 
 void MORPG::UpdateHUD()
 {
-	if (!hudCharacter)
+	if (!ch)
 		return;
-	QueueGraphics(new GMSetUIi("MP", GMUI::INTEGER_INPUT, (int) character->stats->mp));
-	QueueGraphics(new GMSetUIs("MaxMP", GMUI::TEXT, "/ "+String(character->stats->maxMp)));
+	QueueGraphics(new GMSetUIi("MP", GMUI::INTEGER_INPUT, (int) ch->stats->mp));
+	QueueGraphics(new GMSetUIs("MaxMP", GMUI::TEXT, "/ "+String(ch->stats->maxMp)));
 	UpdateHPInHUD();
 	UpdateTargetInHUD();
 }
 
 void MORPG::UpdateHPInHUD()
 {
-	if (!hudCharacter)
+	if (!ch)
 		return;
-	QueueGraphics(new GMSetUIi("HP", GMUI::INTEGER_INPUT, (int) character->stats->hp));
-	QueueGraphics(new GMSetUIs("MaxHP", GMUI::TEXT, "/ "+String(character->stats->maxHp)));
+	QueueGraphics(new GMSetUIi("HP", GMUI::INTEGER_INPUT, (int) ch->stats->hp));
+	QueueGraphics(new GMSetUIs("MaxHP", GMUI::TEXT, "/ "+String(ch->stats->maxHp)));
 }
 
 void MORPG::UpdateTargetInHUD() // Target sub-section of HUD.
 {
-	QueueGraphics(new GMSetUIs("Target", GMUI::TEXT, character->prop->mainTarget? ("Target: "+ character->prop->mainTarget->name) : "No target"));
+	if (ch == 0 || ch->prop == 0)
+		return;
+	QueueGraphics(new GMSetUIs("Target", GMUI::TEXT, ch->prop->mainTarget? ("Target: "+ ch->prop->mainTarget->name) : "No target"));
 }
 
 #include "UI/UIButtons.h"
 
 void MORPG::OpenInteractionMenu()
 {
-	if (hudCharacter == 0 || iMenuOpen)
+	if (ch == 0 || iMenuOpen)
 		return;
 	// Don't auto grab target. If no target, grab self if anything.
-	if (hudCharacter->mainTarget == 0)
+	if (ch->prop->mainTarget == 0)
 	{
-		hudCharacter->mainTarget = hudCharacter->ch;
+		ch->prop->mainTarget = ch->prop->ch;
 		return;
 	}
 	iMenuOpen = true;
 	// Fill it.
 	QueueGraphics(new GMClearUI("IMenu"));
 	List<String> buttons;
-	if (hudCharacter->MainTarget()->characterType == Character::FOE)
+	if (ch->prop->MainTarget()->foe)
 	{
-		if (hudCharacter->IsAttacking())
+		if (ch->prop->IsAttacking())
 		{
 			buttons.AddItem("Disengage");
 		}
 		else
 			buttons.AddItem("Attack");
-		// If have any skills, that is.
-		if (hudCharacter->ch->activatableCombatSkills.Size())
-			buttons.AddItem("Skills");
 	}
+	// If have any skills, that is.
+	if (ch->prop->ch->activatableCombatSkills.Size())
+		buttons.AddItem("Skills");
 	buttons.AddItem("Check");
 	for (int i = 0; i < buttons.Size(); ++i)
 	{
@@ -585,13 +610,12 @@ void MORPG::CloseInteractionMenu()
 
 void MORPG::OpenSubIMenuMenu(int whichMenu)
 {
-	if (hudCharacter == 0)
+	if (ch->prop == 0)
 		return;
 	// Don't auto grab target. If no target, grab self if anything.
 	if (subMenuOpen >= 0)
 		CloseSubIMenuMenu();
 	subMenuOpen = whichMenu;
-	Character * ch = hudCharacter->ch;
 	/// Populate it.
 	QueueGraphics(new GMClearUI("SubIMenu", hud));
 	for (int i = 0; i < ch->activatableCombatSkills.Size(); ++i)
@@ -616,6 +640,7 @@ void MORPG::CloseSubIMenuMenu()
 void MORPG::Log(CTextr text)
 {
 	
+	chatLogEntries.AddItem(text);
 	QueueGraphics(new GMSetUIt("ChatLog", GMUI::LOG_APPEND, text));
 }
 
@@ -649,4 +674,32 @@ void MORPG::EvaluateLine(String cmd)
 		testMultiplier = cmd.Tokenize(" ")[1].ParseFloat();
 		ClampFloat(testMultiplier, 0.1f, 3.f);
 	}
+	if (cmd.StartsWith("/newworld"))
+	{
+		// Prepare for new world by closing UI and removing pointers.
+		PrepareForDeletion();
+		MesMan.QueueMessages("NewWorld&EnterRandomZone");		// New o
+	}
+	if (cmd.StartsWith("/zone"))
+	{
+		// Go to random other zone.
+		ZoneTo(RandomZone());
+	}
+	if (cmd.StartsWith("/test"))
+	{
+		CreateTestCharacter();
+	}
 }
+
+void MORPG::CreateTestCharacter()
+{
+	/// Add an initial test character?
+	ch = new PC();
+	world.pcs.AddItem(ch);
+	currentZone->AddCharacter(ch);
+	// Attach ze propororoty to bind the entity and the player.
+	ch->Spawn(Vector3f(0,0,0), currentZone);
+	OpenHUD(ch);
+	// Enable steering!
+	SetFocusCharacter(ch);
+};

@@ -6,7 +6,7 @@
 
 #include "Message/MessageManager.h"
 
-#include "Character/Character.h"
+#include "Character/PlayerCharacter.h"
 
 #include "Network/Packet/Packet.h"
 
@@ -77,7 +77,7 @@ void MORPGSession::Login(String userName, String passWord)
 	// Select character!
 	if (!self)
 	{
-		self = new Character();
+		self = new PlayerCharacter();
 	}
 	self->name = "Me";
 	/// Either set position as loaded from the server, or call some function to place our character somewhere else?

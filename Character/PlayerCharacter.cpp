@@ -7,9 +7,9 @@
 #include "Skill.h"
 
 PC::PC() 
-	: Character()
+	: Character(CT::PLAYER)
 {
-	characterType = Character::PLAYER;
+	characterType = CT::PLAYER;
 	// Add some default skills - the 2-hours specifically.
 	for (int i = 0; i < CLASSES; ++i)
 	{

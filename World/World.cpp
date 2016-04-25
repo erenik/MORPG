@@ -35,23 +35,10 @@ World::World()
 
 void World::Process(short timeInMs)
 {
-	// Look for characters to remove or respawn.
-	List<Character*> toRemove;
-	for (int i = 0; i < characters.Size(); ++i)
+	// Look for interactables to remove or respawn?
+	for (int i = 0; i < zones.Size(); ++i)
 	{
-		Character * c = characters[i];
-		if (c->prop->deleteMe)
-		{
-			toRemove.AddItem(c);
-		}
-	}
-	for (int i = 0; i < toRemove.Size(); ++i)
-	{
-		Character * c = toRemove[i];
-		MapMan.DeleteEntity(c->prop->owner);
-		characters.RemoveItem(c);
-		interactables.RemoveItem(c);
-		delete c;
+		zones[i]->Process(timeInMs);
 	}
 }
 
@@ -65,17 +52,27 @@ void World::ClearSettlementsAndCharacters()
 		zone->characters.Clear();
 		zone->hasSettlement = false;
 	}
-	characters.ClearAndDelete();
+	pcs.ClearAndDelete();
 	settlements.Clear();
 }
 
 /// Deletes all contents in this world. Makes it ready for loading again.
 void World::Delete()
 {
+	// Remove pc's from zones first... or not.
+	for (int i = 0; i < zones.Size(); ++i)
+	{
+		zones[i]->RemoveCharacters(pcs);
+	}
+
 	std::cout<<"\nDeleting world...";
 	nations.ClearAndDelete();
+
+	// Delete zones..?
+	MapMan.MakeActive(0);
 	zones.ClearAndDelete();
-	characters.ClearAndDelete();
+	
+	pcs.ClearAndDelete();
 	quests.ClearAndDelete();
 	settlements.Clear();
 	empty = true;
@@ -94,7 +91,7 @@ bool World::WriteTo(std::fstream & file)
 	name.WriteTo(file);
 	size.WriteTo(file);
 	WriteListTo(zones, file);
-	WriteListTo(characters,file);
+	WriteListTo(pcs,file);
 	oceanColor.WriteTo(file);
 	return true;
 }
@@ -121,7 +118,7 @@ bool World::ReadFrom(std::fstream & file)
 	}
 	/// Re-connect zones.
 	ReconnectZones();
-	ReadListFrom(characters, file);
+	ReadListFrom(pcs, file);
 	oceanColor.ReadFrom(file);
 	return true;
 }
@@ -223,7 +220,7 @@ Zone * World::GetZoneByName(String name)
 	for (int i = 0; i < zones.Size(); ++i)
 	{
 		Zone * zone = zones[i];
-		if (zone->name == name)
+		if (zone->Name() == name)
 			return zone;
 	}
 	return NULL;

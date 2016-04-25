@@ -279,7 +279,8 @@ void MHost::EnterWorldCreation()
 
 void MHost::GenerateWorld(bool newRandomSeed)
 {
-//	world.Delete();
+	// Delete old one first if so, yo.
+	world.Delete();
 	activeWorldGenerator->GenerateWorld(world, newRandomSeed);
 	OnWorldUpdated();
 }
@@ -301,4 +302,10 @@ void MHost::OnWorldUpdated()
 	worldMap.Update();
 	worldMap.UpdateSettlements();
 	worldMap.CenterCamera();
+	// Create one map per zone by default. More maps may be created for in-doors, dungeons, etc. recursively.
+	for (int i = 0; i < world.zones.Size(); ++i)
+	{
+		// Generate map for each zone.
+		world.zones[i]->CreateMap();
+	}
 }

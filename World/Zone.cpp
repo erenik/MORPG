@@ -13,16 +13,21 @@
 #include "Graphics/Messages/GraphicsMessages.h"
 #include "Graphics/Messages/GMCamera.h"
 
+#include "Character/Stats.h"
+#include "Character/Character.h"
+#include "Properties/CharacterProperty.h"
 #include "Model/ModelManager.h"
 #include "TextureManager.h"
 
+#include "Maps/MapManager.h"
 #include "Room.h"
 
 #include "WorldMap.h"
 
-Zone::Zone()
+Zone::Zone(String i_name) 
 {
 	Nullify();
+	this->name = i_name;
 }
 
 void Zone::Nullify()
@@ -42,6 +47,17 @@ Zone::~Zone()
 	buildings.ClearAndDelete();
 	entrances.ClearAndDelete();
 	rooms.ClearAndDelete();
+	// Delete map if not done so already. lolwat
+//	if (map)
+	//	MapMan.DeleteMap(map);
+	/// Contains all foes and characters alike. Maybe check for PCs so they're not deleted?
+	interactables.ClearAndDelete();
+}
+
+void Zone::SetName(String i_name)
+{
+	// Check that it doesn't clash with other names, or screw it?
+	name = i_name;
 }
 
 /// Usually the most important building.
@@ -92,11 +108,55 @@ bool Zone::Place(Room * room)
 	return true;
 }
 
+/// Simulate it. Clear up old stuff as needed.
+void Zone::Process(int timeInMs)
+{
+	List<Character*> toRemove;
+	for (int i = 0; i < characters.Size(); ++i)
+	{
+		Character * c = characters[i];
+		if (c->prop->deleteMe)
+		{
+			toRemove.AddItem(c);
+		}
+	}
+	for (int i = 0; i < toRemove.Size(); ++i)
+	{
+		Character * c = toRemove[i];
+		MapMan.DeleteEntity(c->prop->owner);
+		characters.RemoveItem(c);
+		interactables.RemoveItem(c);
+		delete c;
+	}
+}
+
+/// Adds character to zone.
+void Zone::AddCharacter(Character * c)
+{
+	characters.AddItem(c);
+	interactables.AddItem(c);
+	/// Move divisions later...
+}
+
+void Zone::RemoveCharacter(Character * c)
+{
+	characters.RemoveItem(c);
+	interactables.RemoveItem(c);
+	// If active zone, remove from simulation here too. or elsewhere?
+}
+
+void Zone::RemoveCharacters(List<Character *> cs)
+{
+	characters.Remove(cs);
+	List<Interactable*>  ics = ConvertList<Character*, Interactable*>(cs);
+	interactables.Remove(ics);
+}
+
 // Registers all entities for display and makes the world-map camera active.
 void Zone::MakeActive()
 {
-	// Unregister all current entities from graphics rendering.
-	GraphicsMan.QueueMessage(new GraphicsMessage(GM_UNREGISTER_ALL_ENTITIES));
+	// Unregister all current entities from graphics rendering. <- why?
+//	GraphicsMan.QueueMessage(new GraphicsMessage(GM_UNREGISTER_ALL_ENTITIES));
 	// Create camera if needed.
 	if (!camera){
 		camera = CameraMan.NewCamera("ZoneCamera", true);
@@ -109,7 +169,8 @@ void Zone::MakeActive()
 		Camera * resetCamera = CameraMan.NewCamera("ResetCamera", true);
 		camera->resetCamera = resetCamera;
 	}
-	GraphicsMan.QueueMessage(new GMSetCamera(camera));
+	/// Why set the camera? MakeActive should load the Zone, but where to look will be dealt with later.
+//	GraphicsMan.QueueMessage(new GMSetCamera(camera));
 	// o.o
 	if (entities.Size() == 0)
 	{
@@ -122,25 +183,57 @@ void Zone::MakeActive()
 		// And reset it.
 		camera->Reset();
 	}
-	GraphicsMan.QueueMessage(new GMRegisterEntities(entities));
+	// Make whole map active?
+	MapMan.MakeActive(this);
+//	GraphicsMan.QueueMessage(new GMRegisterEntities(entities));
 }
 
-
-/// Takes all models this zone is composed of and creates it for you. Will also create all characters within (hopefully including you!)
-void Zone::CreateEntities()
+void Zone::MakeInactive()
 {
+	MapMan.MakeInactive(this);
+}
+
+/// Called host-side. Creates map with all entities n properties inside for simulation. Does not register for simulation.
+void Zone::CreateMap()
+{
+	/// 
+//	map = MapMan.CreateMap(name);
+//	assert(map);
+
+	MapMan.MakeActive(this);
+	/// Default, make one flat space for floor first.
+	Entity * entity = EntityMan.CreateEntity("Room placeholder plate", ModelMan.GetModel("Plane.obj"), TexMan.GenerateTexture(Vector4f(1,1,1,1)));
+//	entity->position = worldPos * roomGridSize + Vector3f(0.5f,0,0.5f); // Offset so that it is inside the grid correctly.
+	entity->RecalculateMatrix();
+	entities.Add(entity);
+	MapMan.AddEntity(entity);
+	/// For each building or obstacle, create it.
+
+	/// Create each zone.
+
+
+	/// For each character inside, create its entity.
+	for (int i = 0; i < characters.Size(); ++i)
+	{
+		Character * c = characters[i];
+		c->Spawn(c->position, this);
+	}
+	/// Should only create, not necessarily make visible or register for physics.
+
+
 	// Create all entities as the rooms and character data specify them at the moment!
 	for (int i = 0; i < rooms.Size(); ++i)
 	{
 		Room * room = rooms[i];
 		if (room->model)
-		{
+		{/*
 			Entity * entity = EntityMan.CreateEntity("Room", room->model, TexMan.GenerateTexture(Vector4f(1,1,1,1)));
 			Vector3f worldPos = FromWorldToWorldMap(room->position);
 			entity->worldPosition = worldPos * roomGridSize;
 			entity->scale = FromWorldToWorldMap(room->scale);
 			entity->RecalculateMatrix();
 			entities.Add(entity);
+			*/
 		}
 		else 
 		{
@@ -189,6 +282,11 @@ void Zone::CreateEntities()
 	}
 	// Deletes and re-creates entities as needed.
 //	LoadFromCompactData();
+}
+
+/// Takes all models this zone is composed of and creates it for you. Will also create all characters within (hopefully including you!)
+void Zone::CreateEntities()
+{
 }
 
 /// If this zone is to be painted on a map, what color would it be?
