@@ -204,9 +204,12 @@ bool MCharProp::TargetAlive()
 	return false;
 }
 
+/// Performs an attack on main target (probably). Returns true if target died. false if still alive for processing more attacks.
 bool MCharProp::Attack()
 {
 	Character * target = MainTarget();
+	if (!target)
+		return true;
 	// Perform an attack.
 	Stats * tStats = target->stats,
 		* mStats = ch->stats;

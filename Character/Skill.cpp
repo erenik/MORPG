@@ -16,13 +16,18 @@ String GetSkillName(int skill)
 		// 2-hours
 		case I_CAN_DO_IT: return "I can do it!"; case BERSERK: return "Berserk"; case RESTORATION: return "Restoration"; case INNER_POTENTIAL: return "Inner potential";
 		// Classless skills. 
+		case RESTING: return "Resting"; case BAZAAR: return "Bazaar"; case STEAL: return "Steal"; case DUAL_WIELD: return "Dual Wield";
+		case CARTOGRAPHY: return "Cartography"; case UNARMED_TRAINING: return "Unarmed traning"; case SHIELD_MASTERY: return "Shield Mastery";
+		// Classless L15+
+		case LONG_DISTANCE_ARCHERY: return "Long-distance Archery"; case BUY_N_SELL: return "Buy-and-Sell"; case POLISH_GEAR: return "Polish gear";
+		case DUAL_WIELD_II: return "Dual-wield II"; case MAGIC_AFFINITY: return "Magic affinity"; case UNARMED_TRAINING_II: return "Unarmed traning II";
 		/// Monk skills
 		
 		// etc.
 		default:
-			morpg->Log("Add in GetSkillName in MORPG/Character/Skill.cpp");
+			std::cout<<"";
 	}
-	return "Not there yet";
+	return "";
 }
 
 int GetSkillByName(String name)
@@ -57,6 +62,37 @@ int GetPreparationTimeMs(int skill, char lvl, Character * character)
 		case BANISH: return 2200;
 	}
 	return 0;
+}
+
+// Traning multiplier
+int GetSkillMultiplier(int skill)
+{
+	switch(skill)
+	{
+		// Default, check number, modulo SKILLS_PER_CLASS, check the tier it belongs to -> multiplier
+		default:
+		{
+			int modSkill = skill % SKILLS_PER_CLASS;
+			if (modSkill < 15)
+				return 1;
+			if (modSkill < 30)
+				return 2;
+			if (modSkill < 40)
+				return 3;
+			if (modSkill < 50)
+				return 4;
+			if (modSkill < 60)
+				return 5;
+			if (modSkill < 70)
+				return 6;
+			if (modSkill < 80)
+				return 7;
+			if (modSkill < 90)
+				return 8;
+			return 32;
+		}
+	}
+	return 99;
 }
 
  bool IsActivatableCombatSkill(int skill)

@@ -115,6 +115,8 @@ void Zone::Process(int timeInMs)
 	for (int i = 0; i < characters.Size(); ++i)
 	{
 		Character * c = characters[i];
+		if (!c->prop)
+			continue;
 		if (c->prop->deleteMe)
 		{
 			toRemove.AddItem(c);
@@ -133,9 +135,12 @@ void Zone::Process(int timeInMs)
 /// Adds character to zone.
 void Zone::AddCharacter(Character * c)
 {
+	assert(!characters.Exists(c));
 	characters.AddItem(c);
+	assert(!interactables.Exists(c));
 	interactables.AddItem(c);
 	/// Move divisions later...
+	c->zone = this;
 }
 
 void Zone::RemoveCharacter(Character * c)

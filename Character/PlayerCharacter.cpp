@@ -5,6 +5,7 @@
 #include "PlayerCharacter.h"
 #include "Class.h"
 #include "Skill.h"
+#include "AllSkillsEnum.h"
 
 PC::PC() 
 	: Character(CT::PLAYER)
@@ -15,4 +16,5 @@ PC::PC()
 	{
 		skills.AddItem(std::pair<int,char>(i * SPC, 1));
 	}
+	skillTraining = RESTING;
 }

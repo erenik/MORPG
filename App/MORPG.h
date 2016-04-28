@@ -4,6 +4,7 @@
 
 #include "AppStates/AppState.h"
 
+class Shop;
 class MORPGSession;
 class Zone;
 class CharacterProperty;
@@ -43,6 +44,7 @@ public:
 	/// Load map/zone. Leave old one. 
 	virtual void EnterZone(Zone * zone);
 	virtual void ZoneTo(Zone * zone);
+	Zone * RandomSettlement();
 	Zone * RandomZone();
 
 	Character * HUDCharacter();
@@ -65,12 +67,29 @@ public:
 	};
 	void OpenSubIMenuMenu(int whichMenu);
 	void CloseSubIMenuMenu();
+	// Refers to in-game main menu.
+	void OpenMainMenu();
+	void CloseMainMenu();
+	void OpenStatusScreen();
+	void CloseStatusScreen();
+	void OpenEquipmentScreen();
+	void CloseEquipmentScreen();
+	void OpenConfigScreen();
+	void CloseConfigScreen();
+	enum { COMMON_SKILLS, CLASS_SKILLS, WEAPON_SKILLS, };
+	void PopulateSkills(int which);
+	void TrainSkill(int skill);
+
+	bool AnyOtherMenuOpen();
 	void Log(CTextr text);
 
 	/// Chat or command line.
 	void EvaluateLine(String cmd);
 	/// Show with cool arrows, yes.
 	void OnTargetUpdated();
+
+	/// Opens a shop.
+	void OpenShop(Shop * shop);
 
 	/// Closes UI, repoints pointers.
 	void PrepareForDeletion();
@@ -84,6 +103,11 @@ private:
 	bool hudOpen;
 	bool iMenuOpen;
 	int subMenuOpen; // -1 when none open.
+	bool statusScreenOpen;
+	bool equipmentScreenOpen;
+	bool inventoryScreenOpen;
+	bool configScreenOpen;
+	bool mainMenuOpen;
 
 	/// The character property of the character we are currently controlling (both camera focus and input-focus!)
 	Character * ch;

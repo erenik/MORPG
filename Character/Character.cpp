@@ -56,6 +56,15 @@ int TNLWeapon(int level)
 	return 150 + (level-10) * 150;
 }
 
+/// Skills gneerally go from lvl 0 (unavailable) to 10 (capped).
+int TNLSkill(int skill, char level)
+{
+	int mult = GetSkillMultiplier(skill);
+	int tnl = 800 * mult + level * 400 * mult;
+	return tnl;
+}
+
+
 int Character::idEnumerator = 0;
 
 Character::Character(int type)
@@ -70,7 +79,9 @@ Character::Character(int type)
 	stats = statsWithBuffs;
 	prop = 0;
 	zone = 0;
+	money = 0;
 	characterType = type;
+	skillTraining = -1;
 }
 
 Character::~Character()
@@ -83,23 +94,30 @@ Character::~Character()
 /// Spawns in map. Must have map assigned first.
 void Character::Spawn(ConstVec3fr position, Zone * intoZone)
 {
-	/// Still spawned since earlier. Despawn first?
+	// If prop is 0, shouldn't be spawned. 
+	assert(prop == 0); 
+	/// Still spawned since earlier. Despawn first? No.
 	if (zone)
 	{
-		Despawn();	
+//		Despawn();
 	}
 	assert(characterType != CT::BAD_TYPE);
 	if (intoZone && zone == 0)
+	{
 		zone = intoZone;
+		zone->AddCharacter(this); // Add character to zone too if not already there.
+	}
 	assert(zone);
-	zone->AddCharacter(this); // Add character to zone too.
 
 	// update all stats right before spawning.
 	UpdateBaseStatsToClassAndLevel();
 
-	/// Copy hp and mp from max, since spawning.
-	stats->hp = (float) stats->maxHp;
-	stats->mp = (float) stats->maxMp;
+	/// Copy hp and mp from max, since spawning. No.
+	if (false)
+	{
+		stats->hp = (float) stats->maxHp;
+		stats->mp = (float) stats->maxMp;
+	}
 
 	// Select texture based on type.
 	String tex = "0xAA";
@@ -131,7 +149,9 @@ void Character::Despawn()
 	// Remove from zone if not already done so?
 	zone->RemoveCharacter(this);
 	zone = 0;
-	MapMan.DeleteEntity(prop->owner); // Assuming we have an entity from before, re-use it? or not.
+	if (prop)
+		MapMan.DeleteEntity(prop->owner); // Assuming we have an entity from before, re-use it? or not.
+	prop = 0;
 }
 
 void Character::SetCameraFocus()
@@ -139,6 +159,29 @@ void Character::SetCameraFocus()
 	// Attach camera to the player.
 	QueueGraphics(new GMSetCamera(firstPersonCamera, CT_ENTITY_TO_TRACK, this->prop->owner));
 	QueueGraphics(new GMSetCamera(firstPersonCamera)); // Set as active camera.
+}
+
+/// Exp in current skill towards next level.
+int Character::SkillExp(int skill)
+{
+	for (int i = 0; i < skillEXP.Size(); ++i)
+	{
+		std::pair<int, int> & exp = skillEXP[i];
+		if (exp.first == skill)
+			return exp.second;
+	}
+	return 0;
+}
+
+int Character::ClassExp() // Exp in current class towards next level.
+{
+	for (int i = 0; i < classExp.Size(); ++i)
+	{
+		std::pair<char,int> & ce = classExp[i];
+		if (ce.first == this->currentClassLvl.first)
+			return ce.second;
+	}
+	return 0;
 }
 
 /// Where.
@@ -217,10 +260,34 @@ int Character::GainWeaponExp(int amount)
 	return GainWeaponExp(amount);	
 }
 
+int Character::GainSkillExp(int amount)
+{
+	bool wasSet = false;
+	for (int i = 0; i < skillEXP.Size(); ++i)
+	{
+		std::pair<int,int> & se = skillEXP[i];
+		if (se.first == skillTraining)
+		{
+			se.second += amount;
+			int skillLvl = SkillLevel(skillTraining);
+			int tnl = TNLSkill(se.first, skillLvl);
+			if (se.second > tnl)
+			{
+				se.second -= tnl;
+				SetSkillLevel(skillTraining, skillLvl + 1);
+			}
+			return 0;
+		}
+	}
+	skillEXP.AddItem(std::pair<int, int>(skillTraining, 0));
+	return GainSkillExp(amount);
+}
+
 /// Returns non-0 if reaching target level. 0 if same level.
 int Character::GainExp(int amount)
 {
 	GainWeaponExp(amount);
+	GainSkillExp(amount);
 
 	// Gain exp into equipped weapon, class level, and class training skill, yes?
 	for (int i = 0; i < classExp.Size(); ++i)
@@ -307,12 +374,12 @@ void Character::UpdateBaseStatsForClass()
 	bs.family = HUMANOID;
 	bs.weaponType = UNARMED;
 
-	bs.str += (int) strL * L;
-	bs.vit += (int) vitL * L;
-	bs.maxHp += (int) hpL * L;
-	bs.mag += (int) magL * L;
-	bs.mdef += (int) MdefL * L;
-	bs.maxMp += (int) mpL * L;
+	bs.str += int(strL * L);
+	bs.vit += int(vitL * L);
+	bs.maxHp += int(hpL * L);
+	bs.mag += int(magL * L);
+	bs.mdef += int(MdefL * L);
+	bs.maxMp += int(mpL * L);
 	bs.maxHp = int(bs.maxHp * (1.0 + hppL * L * 0.01f));
 	bs.maxMp = int(bs.maxHp * (1.0 + mppL * L * 0.01f));
 
@@ -457,12 +524,30 @@ void Character::RemoveBuff(Buff * goBuff)
 
 char Character::SkillLevel(int skill)
 {
-	for (int i = 0; i < availableSkills.Size(); ++i)
+	for (int i = 0; i < skills.Size(); ++i)
 	{
-		if (availableSkills[i].first == skill)
-			return availableSkills[i].second;
+		if (skills[i].first == skill)
+			return skills[i].second;
 	}
-	return -1;
+	return 0;
+}
+void Character::SetSkillLevel(int skill, char level)
+{
+	if (level > 10)
+		return;
+	bool set = false;
+	for (int i = 0; i < skills.Size(); ++i)
+	{
+		if (skills[i].first == skill)
+		{
+			skills[i].second = level;
+		}
+	}
+	// Add it?
+	skills.AddItem(std::pair<int, char>(skill, level));
+	// Update in log?
+	if (this == morpg->HUDCharacter())
+		morpg->Log("Skill \""+GetSkillName(skill)+"\" reaches level "+String(int(level))+"!");
 }
 
 

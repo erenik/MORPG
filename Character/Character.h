@@ -39,8 +39,11 @@ enum weaponTypes
 
 String WeaponTypeString(int type);
 
+/// EXP to next level from current level.
 int TNLClass(int level);
 int TNLWeapon(int level);
+/// Skills gneerally go from lvl 0 (unavailable) to 10 (capped).
+int TNLSkill(int skill, char level);
 
 /// Class used to store both npc- and player data! Any character should be playable, or at least jump-in and playable by e.g. GMs for testing purposes.
 class Character : public Interactable
@@ -60,6 +63,9 @@ public:
 	void Despawn(); // Despawns from previous zone.
 	void SetCameraFocus();
 
+	/// Exp in current skill towards next level.
+	int SkillExp(int skill);
+	int ClassExp(); // Exp in current class towards next level.
 	/// Where.
 	virtual Vector3f Position();
 	void BecomeUntargetable();
@@ -69,6 +75,8 @@ public:
 	void SetWeaponTrainingLevel(int type, int lvl);
 	/// Reached level?
 	int GainWeaponExp(int amount);
+	/// For gaining skill exp (classless, class-specific).
+	int GainSkillExp(int amount);
 	/// Returns non-0 if reaching target level. 0 if same level.
 	int GainExp(int amount);
 
@@ -96,6 +104,7 @@ public:
 
 	/// Adds buff. Recalcualtes stats. Already created when adding.
 	char SkillLevel(int skill);
+	void SetSkillLevel(int skill, char level);
 
 	/// o.o
 	bool WriteTo(std::fstream & file);

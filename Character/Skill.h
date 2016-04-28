@@ -39,6 +39,7 @@ int GetSkillByName(String name);
 char GetSkillRequiredClass(int skill);
 char GetSkillRequiredClassLevel(int skill);
 int GetPreparationTimeMs(int skill, char lvl, Character * character);
+int GetSkillMultiplier(int skill); // Traning multiplier
 /// Queries if activatable - at all 
 bool IsActivatableCombatSkill(int skill);
 /// Yarp.

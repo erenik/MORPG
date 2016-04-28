@@ -98,12 +98,25 @@ MORPG::MORPG()
 	iMenuOpen = false;
 	morpg = this;
 	hud = 0;
+	statusScreenOpen = false;
+	equipmentScreenOpen = false;
+	inventoryScreenOpen = false;
+	configScreenOpen = false;
+	mainMenuOpen = false;
 }
 
 MORPG::~MORPG()
 {
 	// Delete the world..!
 	world.Delete();
+}
+
+/// Interactable.
+Interactable * MainTarget()
+{
+	if (morpg->HUDCharacter())
+		return morpg->HUDCharacter()->prop->MainTarget();
+	return 0;
 }
 
 Character * MainTargetChar()
@@ -115,11 +128,13 @@ Character * MainTargetChar()
 	return mt;
 }
 
-Entity * MainTarget()
+Entity * MainTargetEntity()
 {
 	Character * character = morpg->HUDCharacter();
 	Character * mt = character->prop->MainTarget();
 	if (mt == 0)
+		return 0;
+	if (!mt->prop)
 		return 0;
 	return mt->prop->owner;
 }
@@ -311,6 +326,50 @@ void MORPG::ProcessMessage(Message * message)
 				QueueGraphics(new GMSetUIs("InputLine", GMUI::STRING_INPUT_TEXT, ""));
 				QueueGraphics(new GMSetUIb("InputLine", GMUI::ACTIVE, true));
 			}
+			else if (msg == "OpenMainMenu")
+				OpenMainMenu();
+			else if (msg == "CloseMainMenu")
+				CloseMainMenu();
+			else if (msg == "OpenStatusScreen")
+				OpenStatusScreen();
+			else if (msg == "CloseStatusScreen")
+				CloseStatusScreen();
+			else if (msg == "OpenEquipmentScreen")
+				OpenEquipmentScreen();
+			else if (msg == "CloseEquipmentScreen")
+				CloseEquipmentScreen();
+			else if (msg == "OpenConfigScreen")
+				OpenConfigScreen();
+			else if (msg == "CloseConfigScreen")
+				CloseConfigScreen();
+			else if (msg == "PopulateCommonSkills")
+				PopulateSkills(COMMON_SKILLS);
+			else if (msg == "PopulateClassSkills")
+				PopulateSkills(CLASS_SKILLS);
+			else if (msg == "PopulateWeaponSkills")
+				PopulateSkills(WEAPON_SKILLS);
+			else if (msg.StartsWith("TrainSkill:"))
+			{
+				int skillN = msg.Tokenize(":")[1].ParseInt();
+				TrainSkill(skillN);
+			}
+			else if (msg == "Cancel/Escape")
+			{
+				if (MainTarget() && !AnyOtherMenuOpen())
+					ch->prop->SetTarget(0);
+			}
+			else if (msg == "Heal")
+			{
+				MainTarget()->RequestHeal(ch);
+			}
+			else if (msg == "Buy")
+			{
+				MainTarget()->RequestBuy(ch);
+			}
+			else if (msg == "Talk")
+			{
+				MainTarget()->RequestTalk(ch);				
+			}
 			break;
 		}
 	}
@@ -321,6 +380,7 @@ void MORPG::CreateDefaultBindings()
 {
 	InputMapping * mapping = &this->inputMapping;
 	List<Binding*> & bindings = mapping->bindings;
+	bindings.AddItem(new Binding(Action::FromString("OpenStatusScreen"), List<int>(KEY::CTRL, KEY::S)));
 	mapping->bindings.Add(new Binding(Action::FromString("ToggleAutorun"), KEY::R));
 	mapping->bindings.Add(new Binding(Action::FromString("ToggleHeal"), KEY::H));
 	bindings.AddItem((new Binding(Action::FromString("NextTarget"), KEY::TAB))->SetActivateOnRepeat(true));
@@ -328,6 +388,9 @@ void MORPG::CreateDefaultBindings()
 	bindings.AddItem(new Binding(Action::FromString("Interact"), KEY::ENTER));
 	bindings.AddItem(new Binding(Action::FromString("OpenInputLine"), KEY::SPACE));
 	bindings.AddItem(new Binding(Action::FromString("TargetSelf"), KEY::F1));
+	bindings.AddItem(new Binding(Action::FromString("Cancel/Escape"), KEY::ESCAPE)); // Mainly removing main target.
+	bindings.AddItem(new Binding(Action::FromString("OpenMainMenu"), KEY::PLUS));
+	bindings.AddItem(new Binding(Action::FromString("OpenMainMenu"), KEY::F));
 }
 
 List<Interactable*> GetInteractablesOnScreen()
@@ -390,7 +453,9 @@ void MORPG::NextTarget()
 	{
 		if (ints[i] == currT)
 		{
-			Interactable * inter = ints[(i+1) % ints.Size()];
+			int index = (i+1) % ints.Size();
+			Interactable * inter = ints[index];
+			assert(inter != currT);
 			ch->prop->SetTarget(inter);
 			return;
 		}
@@ -441,12 +506,19 @@ void MORPG::OnTargetUpdated()
 
 	Character * mtc = MainTargetChar();
 	// Attach position to other entity.
-	QueuePhysics(new PMSetEntity(targetArrowEntity, PT_PARENT, MainTarget()));
+	QueuePhysics(new PMSetEntity(targetArrowEntity, PT_PARENT, MainTargetEntity()));
 	QueuePhysics(new PMSetEntity(targetArrowEntity, PT_INHERIT_POSITION_ONLY));
 	if (mtc)
 		QueuePhysics(new PMSetEntity(targetArrowEntity, PT_POSITION, Vector3f(0, 0.5f + mtc->representationScale.y * 2.f, 0)));
 	/// Make invisible if no target?
 	QueueGraphics(new GMSetEntityb(targetArrowEntity, GT_VISIBILITY, MainTarget() != NULL ? true : false));
+}
+
+/// Opens a shop.
+void MORPG::OpenShop(Shop * shop)
+{
+	// Open buy/sell menu?
+
 }
 
 void MORPG::PrepareForDeletion()
@@ -465,9 +537,11 @@ void MORPG::SetFocusCharacter(Character * newCh)
 		ch->prop->inputFocus = false;
 	}
 	this->ch = newCh;
-	// o-o
-	ch->SetCameraFocus();
-	ch->prop->inputFocus = true;
+	if (ch)
+	{
+		ch->SetCameraFocus();
+		ch->prop->inputFocus = true;
+	}
 }
 
 
@@ -499,6 +573,7 @@ void MORPG::ZoneTo(Zone * zone)
 	/// If we had a previously created host/test character, move it there too.
 	if (ch)
 	{
+		ch->Despawn();
 		ch->Spawn(Vector3f(), zone);
 		// Set input and camera focus for control.
 		SetFocusCharacter(ch);
@@ -509,6 +584,15 @@ void MORPG::ZoneTo(Zone * zone)
 		// Re-fill logg.
 		QueueGraphics(new GMSetUIt("ChatLog", GMUI::LOG_FILL, chatLogEntries));
 	}
+}
+
+Zone * MORPG::RandomSettlement()
+{
+	Random rz;
+	int index = rz.Randi(world.settlements.Size()) % world.settlements.Size();
+	Zone * zone = world.settlements[index];
+	std::cout<<"\nRandom zone: "<<zone->Name();
+	return zone;
 }
 
 Zone * MORPG::RandomZone()
@@ -568,12 +652,15 @@ void MORPG::OpenInteractionMenu()
 {
 	if (ch == 0 || iMenuOpen)
 		return;
+	if (AnyOtherMenuOpen())
+		return;
 	// Don't auto grab target. If no target, grab self if anything.
 	if (ch->prop->mainTarget == 0)
 	{
 		ch->prop->mainTarget = ch->prop->ch;
 		return;
 	}
+	Character * target = (Character*)ch->prop->mainTarget;
 	iMenuOpen = true;
 	// Fill it.
 	QueueGraphics(new GMClearUI("IMenu"));
@@ -587,6 +674,14 @@ void MORPG::OpenInteractionMenu()
 		else
 			buttons.AddItem("Attack");
 	}
+	/// Other actions.
+	if (target->heal)
+		buttons.AddItem("Heal");
+	if (target->sell)
+		buttons.AddItem("Buy");
+	if (target->talk)
+		buttons.AddItem("Talk");
+
 	// If have any skills, that is.
 	if (ch->prop->ch->activatableCombatSkills.Size())
 		buttons.AddItem("Skills");
@@ -636,6 +731,97 @@ void MORPG::CloseSubIMenuMenu()
 	subMenuOpen = -1;
 }
 
+void MORPG::OpenMainMenu()
+{
+	if (AnyOtherMenuOpen())
+		return;
+	mainMenuOpen = true;
+	QueueGraphics(new GMPushUI("gui/MainMenu.gui"));
+}
+void MORPG::CloseMainMenu()
+{
+	mainMenuOpen = false;
+	QueueGraphics(new GMPopUI("MainMenu"));
+}
+
+void MORPG::OpenStatusScreen()
+{
+	if (!ch)
+		return;
+	statusScreenOpen = true;
+	QueueGraphics(new GMPushUI("gui/StatusScreen.gui"));
+	QueueGraphics(new GMSetUIs("Name", GMUI::STRING_INPUT_TEXT, ch->name));
+	QueueGraphics(new GMSetUIs("Class", GMUI::STRING_INPUT_TEXT, ClassFullName(ch->currentClassLvl.first)));
+	QueueGraphics(new GMSetUIi("Level", GMUI::INTEGER_INPUT, ch->Level()));
+	QueueGraphics(new GMSetUIi("Munny", GMUI::INTEGER_INPUT, ch->money));
+	QueueGraphics(new GMSetUIi("STR", GMUI::INTEGER_INPUT, ch->stats->str));
+	QueueGraphics(new GMSetUIi("VIT", GMUI::INTEGER_INPUT, ch->stats->vit));
+	QueueGraphics(new GMSetUIi("MAG", GMUI::INTEGER_INPUT, ch->stats->mag));
+	QueueGraphics(new GMSetUIi("Attack", GMUI::INTEGER_INPUT, ch->stats->Attack()));
+	QueueGraphics(new GMSetUIi("Defense", GMUI::INTEGER_INPUT, ch->stats->Defense()));
+	QueueGraphics(new GMSetUIi("Mdef", GMUI::INTEGER_INPUT, ch->stats->mdef));
+	QueueGraphics(new GMSetUIi("EXP", GMUI::INTEGER_INPUT, ch->ClassExp()));
+	QueueGraphics(new GMSetUIi("ToNext", GMUI::INTEGER_INPUT, TNLClass(ch->Level())));
+}
+
+void MORPG::CloseStatusScreen()
+{
+	QueueGraphics(new GMPopUI("StatusScreen", hud));
+	statusScreenOpen = false;
+}
+
+void MORPG::OpenEquipmentScreen(){}
+void MORPG::CloseEquipmentScreen(){}
+void MORPG::OpenConfigScreen(){}
+void MORPG::CloseConfigScreen()
+{
+}
+
+void MORPG::PopulateSkills(int which)
+{
+	QueueGraphics(new GMClearUI("SkillsList"));
+	int minNum = 0, maxNum = 0;
+	int cls = ch->currentClassLvl.first;
+	if (which == COMMON_SKILLS)
+	{
+		minNum = 1;
+		maxNum = CLASSLESS_SKILLS + SKILLS_PER_CLASS - 1;
+	}
+	else if (which == CLASS_SKILLS && cls != CLASSLESS)
+	{
+		minNum = cls * SKILLS_PER_CLASS + 1;
+		maxNum = (cls + 1) * SKILLS_PER_CLASS - 1;
+	}
+
+	/// Populate skills.
+	for (int skill = minNum; skill < maxNum; ++skill)
+	{
+		int skillLvl = ch->SkillLevel(skill);
+		String skillName = GetSkillName(skill);
+		if (skillName.Length() == 0)
+			continue;
+		UIButton * button = new UIButton("TrainSkill:"+String(skill));
+		String text = skillName+" Level: "+String((int)skillLvl)+" EXP: "+String(ch->SkillExp(skill))+" / "+String(TNLSkill(skill, skillLvl));
+		button->text = text;
+		button->sizeRatioY = 0.1f;
+		button->textureSource = ui->defaultTextureSource;
+		QueueGraphics(new GMAddUI(button, "SkillsList"));
+	}
+	/// Check training queue for character.
+	// lall
+}
+
+void MORPG::TrainSkill(int skill)
+{
+	// Start training.
+	ch->skillTraining = skill;
+	Log("Skill training set to skill: "+GetSkillName(skill));
+}
+
+bool MORPG::AnyOtherMenuOpen()
+{
+	return statusScreenOpen | equipmentScreenOpen | inventoryScreenOpen | configScreenOpen | mainMenuOpen;
+}
 
 void MORPG::Log(CTextr text)
 {
@@ -682,8 +868,13 @@ void MORPG::EvaluateLine(String cmd)
 	}
 	if (cmd.StartsWith("/zone"))
 	{
-		// Go to random other zone.
-		ZoneTo(RandomZone());
+		if (cmd.Contains("settlement"))
+		{
+			ZoneTo(RandomSettlement());
+		}
+		else
+			// Go to random other zone.
+			ZoneTo(RandomZone());
 	}
 	if (cmd.StartsWith("/test"))
 	{
@@ -696,7 +887,6 @@ void MORPG::CreateTestCharacter()
 	/// Add an initial test character?
 	ch = new PC();
 	world.pcs.AddItem(ch);
-	currentZone->AddCharacter(ch);
 	// Attach ze propororoty to bind the entity and the player.
 	ch->Spawn(Vector3f(0,0,0), currentZone);
 	OpenHUD(ch);
