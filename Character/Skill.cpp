@@ -101,6 +101,8 @@ int GetSkillMultiplier(int skill)
 	{
 		/// CLASSLESS skills
 		case I_CAN_DO_IT:
+		case STEAL:
+		case MAGIC_AFFINITY:
 		/// FIGHTER_SKILLS
 		case BERSERK: case CHARGE: case PROVOKE: case DEFENDER: case RUSH:  // For rush, only Rush 1 need be activatable, bonuses from other skills will be taken care of later on via search.
 		case OFFENSIVE_STANCE: case GOAD: case WEAPON_BASH: 
@@ -120,8 +122,20 @@ void AddPassiveStatBonuses(int skill, char L, Stats & baseStats)
 {
 	switch(skill)
 	{
-		/// CLASSLESS_SKILLS
-//		case 
+		/// CLASSLESS_SKILLS 1-15
+		case RESTING: baseStats.restingIncrement += 0.1f * L; baseStats.restingPercent += 0.001f * L; break;
+		case BAZAAR: baseStats.itemsSellable += L; baseStats.taxReduction += L; break;
+		case STEAL: baseStats.stealRate += 0.01f * L; break;
+		case DUAL_WIELD: baseStats.dualWield = 0.5f; baseStats.dualWield -= 0.02f * L; break;
+//		case CARTOGRAPHY: 
+		case UNARMED_TRAINING: baseStats.unarmedDMGBonus += 0.5f * L; baseStats.unarmedSelfDamage -= 0.005f * L; break;
+		case SHIELD_MASTERY: if (baseStats.shieldEquipped) baseStats.blockRate += 0.01f * L; baseStats.shieldStatBonus += 0.01f * L; break;
+			// L 16-30
+		case LONG_DISTANCE_ARCHERY: if (baseStats.weaponType == BOW) baseStats.attackRange += 2.f * L; baseStats.rangedDistancePenalty -= 0.1f * L; baseStats.pointBlankDistance += 1.f * L; break;
+		case BUY_N_SELL: baseStats.taxReduction += L; baseStats.npcSellPrice += 0.02f * L; break;
+		case DUAL_WIELD_II: baseStats.dualWield -= 0.01f * L; break;
+		case MAGIC_AFFINITY: baseStats.maxMp += 5 * L; baseStats.mag += L; baseStats.basicSpellEfficiency += 0.10f * L; break;
+		case UNARMED_TRAINING_II: baseStats.unarmedDMGBonus += 0.5f * L; baseStats.unarmedSelfDamage -= 0.005f * L; break;
 		//// FIGHTER_SKILLS
 		case PROVOKE:	baseStats.enmityDecayReduction += L; break; // 1% per L 
 		case DEFENSIVE_TRAINING: baseStats.defense += 2 * L; baseStats.healingReceivedBonus += 0.5f * L; break;

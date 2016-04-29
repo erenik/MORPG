@@ -29,6 +29,7 @@ String WeaponTypeString(int type)
 		case UNARMED: return "Unarmed";
 		case DAGGER: return "Dagger";
 		case SWORD: return "Sword";
+		case BOW: return "Bow";
 		default:
 			assert(false && "");
 	}
@@ -60,7 +61,8 @@ int TNLWeapon(int level)
 int TNLSkill(int skill, char level)
 {
 	int mult = GetSkillMultiplier(skill);
-	int tnl = 800 * mult + level * 400 * mult;
+	int multSquared = mult * mult;
+	int tnl = 150 * multSquared + level * 75 * multSquared;
 	return tnl;
 }
 
@@ -286,8 +288,8 @@ int Character::GainSkillExp(int amount)
 /// Returns non-0 if reaching target level. 0 if same level.
 int Character::GainExp(int amount)
 {
-	GainWeaponExp(amount);
-	GainSkillExp(amount);
+	if (this == morpg->HUDCharacter())
+		morpg->Log(Text("Gained "+String(amount)+" experience points.", 0xE8C782));
 
 	// Gain exp into equipped weapon, class level, and class training skill, yes?
 	for (int i = 0; i < classExp.Size(); ++i)
@@ -304,6 +306,8 @@ int Character::GainExp(int amount)
 				exp.second -= tnl;
 				// Update stats immediately.
 				this->UpdateBaseStatsToClassAndLevel();
+				if (this == morpg->HUDCharacter())
+					morpg->Log(Text(name+" reaches level "+int(currentClassLvl.second)+"!", 0xD3D3D3FF));
 				return currentClassLvl.second;
 			}
 			return 0;
@@ -443,7 +447,8 @@ void Character::UpdateBaseStatsForClass()
 	/// Review skills.
 	for (int i = 0; i < availableSkills.Size(); ++i)
 	{
-		
+		std::pair<int, char> & as = availableSkills[i];
+		AddPassiveStatBonuses(as.first, as.second, bs);
 	}
 }
 
@@ -474,7 +479,7 @@ void Character::UpdateGearStatsToCurrentGear()
 		s.accuracy += level - 5;
 		s.attack += level - 5;
 		s.attackSpeed += (level - 5) * 0.4f;
-		s.damage += int((level - 5) * 0.1f);
+		s.damage += int((level - 5) * 0.1f * (statsWithGear->weaponType == UNARMED? 2.f : 1.f));
 		if (level > 100)
 			s.criticalHitRate += (level - 100) * 0.06125f;
 		if (level > 150)
@@ -533,21 +538,24 @@ char Character::SkillLevel(int skill)
 }
 void Character::SetSkillLevel(int skill, char level)
 {
-	if (level > 10)
-		return;
+	ClampInt(level, 0, 10);
 	bool set = false;
 	for (int i = 0; i < skills.Size(); ++i)
 	{
 		if (skills[i].first == skill)
 		{
 			skills[i].second = level;
+			set = true;
 		}
 	}
-	// Add it?
-	skills.AddItem(std::pair<int, char>(skill, level));
+	// Add it if didn't find n set earlier.
+	if (!set)
+		skills.AddItem(std::pair<int, char>(skill, level));
 	// Update in log?
 	if (this == morpg->HUDCharacter())
 		morpg->Log("Skill \""+GetSkillName(skill)+"\" reaches level "+String(int(level))+"!");
+	/// Update available skills?
+	UpdateBaseStatsToClassAndLevel();
 }
 
 

@@ -32,6 +32,12 @@ struct Stats {
 	int disarmDurationMs; // Currently disarmed?! Yes.
 	int paralyzedMs; // like stun
 
+	float attackRange; // in meters. Default is 2 meters?
+	
+	float rangedAttackRange; // Max range for ranged attacks. Differentiated from melee weapon equipped. Default 30.f max.
+	float rangedDistancePenalty; // Default 3% (3.f) per meter after point-blank range.
+	float pointBlankDistance; // Minimum distance for ranged attacks without penalties to accuracy.
+
 	int weaponType; // Depends on equipped gear. Here for simplicities' sake.
 	int level; /// Max level, used for some calculations.
 	int cls; // class
@@ -39,6 +45,8 @@ struct Stats {
 
 	float regen; // Regen HP per second.
 	float refresh; // Refresh MP per second.
+
+	float basicSpellEfficiency; // % 0.10f for 10% increase, 1.0 for 100% etc.
 
 	float hp, mp;
 	int maxHp, maxMp;
@@ -66,18 +74,27 @@ struct Stats {
 	float damageReduction; // %-based.
 
 	int resting; // tick-tock.
-	float restingPercent; // %-based bonus.
+	float restingIncrement;  // Tick add tock.
+	float restingPercent; // %-based bonus. 0.02f for 2%
+
+	
+	int itemsSellable;
+	float taxReduction; // % for bazaar
+	float npcSellPrice; // % bonus, 0.0 default, +0.05 for +5% etc.
+
+	bool shieldEquipped; // Updated from gear.
+	float shieldStatBonus; // o-o will affect shield stat effects, 0.01 for +1%
 
 	float dualWield; // % penalty. 1.0 (+100%) by default. Reduces to .5 at first trait.
 
 	float unarmedDMGBonus; // H2H n MNK stats
 	float unarmedSelfDamage; // Default 30%, decreases with traits.
-	float blockRate; // %
+	float blockRate; // %, 0.1f for 10%
 	float blockDMGReduction; // % 
 	float kickAttack; // %
 	float kickAttackBonus; // o-o
 
-	float stealRate; // Rogue stats, % on attempts
+	float stealRate; // Rogue stats, % on attempts, 0.05 for 5%
 
 	float coldResistance;
 	float fireResistance;

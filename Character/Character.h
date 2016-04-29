@@ -35,6 +35,7 @@ enum weaponTypes
 	BEAST_WEAPON, // Claws, etc., divide further later.
 	DAGGER,
 	SWORD,
+	BOW,
 };
 
 String WeaponTypeString(int type);

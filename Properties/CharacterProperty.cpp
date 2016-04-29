@@ -150,8 +150,9 @@ void CharacterProperty::Process(int timeInMs)
 void MCharProp::HealTick()
 {
 	int pre = int(ch->stats->hp);
-	HealHp(ch->stats->resting + ch->stats->restingPercent * ch->stats->maxHp);
-	HealMp(ch->stats->resting + ch->stats->restingPercent * ch->stats->maxMp); 
+	++healTicks;
+	HealHp(ch->stats->resting + ch->stats->restingIncrement * healTicks + ch->stats->restingPercent * ch->stats->maxHp);
+	HealMp(ch->stats->resting + ch->stats->restingIncrement * healTicks + ch->stats->restingPercent * ch->stats->maxMp); 
 	int recovered = int(ch->stats->hp - pre);
 	if (morpg->HUDCharacter() == ch && recovered > 0)
 	{
@@ -305,10 +306,11 @@ bool MCharProp::Attack()
 		int expGained = 200 * pow(1.2f, (float)lDiff);
 		if (ch == morpg->HUDCharacter())
 		{
+			expGained *= 1 / testMultiplier;
+			/// Multiply amount if speed thingy for testing things.
+			ch->GainWeaponExp(expGained);
+			ch->GainSkillExp(expGained);
 			int lvldUp = ch->GainExp(expGained);
-			morpg->Log(Text("Gained "+String(expGained)+" experience points.", 0xE8C782));
-			if (lvldUp)
-				morpg->Log(Text(ch->name+" reaches level "+lvldUp+"!", 0xD3D3D3FF));
 		}
 		else
 			ch->GainExp(expGained);
@@ -454,6 +456,7 @@ void CharacterProperty::ToggleHeal()
 	if (healing)
 	{
 		morpg->Log("Resting...");
+		healTicks = 0;
 		healingMs = 0;
 		// Stop movement.
 		autorun = false;

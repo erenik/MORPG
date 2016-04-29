@@ -240,6 +240,8 @@ void MORPG::ProcessMessage(Message * message)
 				if (hudOpen)
 					UpdateHUD();
 				iMenuOpen = false;
+				mainMenuOpen = false;
+				statusScreenOpen = false;
 			}
 			if (msg == "NewWorld")
 			{
@@ -754,6 +756,7 @@ void MORPG::OpenStatusScreen()
 	QueueGraphics(new GMSetUIs("Class", GMUI::STRING_INPUT_TEXT, ClassFullName(ch->currentClassLvl.first)));
 	QueueGraphics(new GMSetUIi("Level", GMUI::INTEGER_INPUT, ch->Level()));
 	QueueGraphics(new GMSetUIi("Munny", GMUI::INTEGER_INPUT, ch->money));
+	QueueGraphics(new GMSetUIi("Damage", GMUI::INTEGER_INPUT, ch->stats->damage));
 	QueueGraphics(new GMSetUIi("STR", GMUI::INTEGER_INPUT, ch->stats->str));
 	QueueGraphics(new GMSetUIi("VIT", GMUI::INTEGER_INPUT, ch->stats->vit));
 	QueueGraphics(new GMSetUIi("MAG", GMUI::INTEGER_INPUT, ch->stats->mag));
@@ -794,6 +797,7 @@ void MORPG::PopulateSkills(int which)
 	}
 
 	/// Populate skills.
+	int firstSkill = -1;
 	for (int skill = minNum; skill < maxNum; ++skill)
 	{
 		int skillLvl = ch->SkillLevel(skill);
@@ -801,6 +805,7 @@ void MORPG::PopulateSkills(int which)
 		if (skillName.Length() == 0)
 			continue;
 		UIButton * button = new UIButton("TrainSkill:"+String(skill));
+		if (firstSkill == -1) firstSkill = skill;
 		String text = skillName+" Level: "+String((int)skillLvl)+" EXP: "+String(ch->SkillExp(skill))+" / "+String(TNLSkill(skill, skillLvl));
 		button->text = text;
 		button->sizeRatioY = 0.1f;
@@ -809,6 +814,8 @@ void MORPG::PopulateSkills(int which)
 	}
 	/// Check training queue for character.
 	// lall
+	// Hover over 1st skill.
+	QueueGraphics(new GMSetHoverUI("TrainSkill:"+String(firstSkill)));
 }
 
 void MORPG::TrainSkill(int skill)

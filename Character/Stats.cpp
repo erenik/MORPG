@@ -28,9 +28,23 @@ Stats::Stats()
 	weaponDelayMs = 6000; // default for unarmed? 600 - 6 seconds.
 	attackSpeed = 0; // Default, affects % wise with formulae
 	counterAttack = doubleAttack = 0;
-	resting = 3; // Default resting, 3 hp/mp per 5 seconds.
+	resting = 5; // Default resting, 3 hp/mp per 5 seconds.
+	restingIncrement = 0.f;
 	restingPercent = 0;
 	dualWield = 1.0; // % penalty. 1.0 (+100%) by default. Reduces to .5 at first trait.
+
+	attackRange = 2.f;
+	rangedAttackRange = 30.f;
+	pointBlankDistance = 3.f;
+	rangedDistancePenalty = 3.f;
+
+	basicSpellEfficiency = 0.f;
+	npcSellPrice = 0.f;
+
+	itemsSellable = 0;
+	taxReduction = 0;
+	shieldEquipped = false;
+	shieldStatBonus = 0;
 
 	unarmedDMGBonus = 0; // H2H n MNK stats
 	unarmedSelfDamage = 0.3f; // Default 30%, decreases with traits.
@@ -39,7 +53,7 @@ Stats::Stats()
 	kickAttack = 0.f;
 	kickAttackBonus = 0.f;
 
-	stealRate = 0.03f; // Rogue stats, % on attempts
+	stealRate = 0; // Rogue stats, % on attempts, 0.05 for 5%
 	coldResistance = fireResistance = 0;
 	slayer = 0;
 	damageReduction = 0;

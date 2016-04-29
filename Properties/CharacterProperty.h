@@ -55,6 +55,7 @@ public:
 	// Default false. Enable to steer this entity.
 	bool inputFocus;
 
+	int healTicks; // How many times resting has occured in succession.
 	Interactable * mainTarget;
 	Character * MainTarget() {return (Character*) mainTarget;};
 	List<Character *> engagedFoes;
