@@ -17,11 +17,17 @@ String GetSkillName(int skill)
 		case I_CAN_DO_IT: return "I can do it!"; case BERSERK: return "Berserk"; case RESTORATION: return "Restoration"; case INNER_POTENTIAL: return "Inner potential";
 		// Classless skills. 
 		case RESTING: return "Resting"; case BAZAAR: return "Bazaar"; case STEAL: return "Steal"; case DUAL_WIELD: return "Dual Wield";
-		case CARTOGRAPHY: return "Cartography"; case UNARMED_TRAINING: return "Unarmed traning"; case SHIELD_MASTERY: return "Shield Mastery";
+		case CARTOGRAPHY: return "Cartography"; case UNARMED_TRAINING: return "Unarmed training"; case SHIELD_MASTERY: return "Shield Mastery";
 		// Classless L15+
 		case LONG_DISTANCE_ARCHERY: return "Long-distance Archery"; case BUY_N_SELL: return "Buy-and-Sell"; case POLISH_GEAR: return "Polish gear";
-		case DUAL_WIELD_II: return "Dual-wield II"; case MAGIC_AFFINITY: return "Magic affinity"; case UNARMED_TRAINING_II: return "Unarmed traning II";
+		case DUAL_WIELD_II: return "Dual-wield II"; case MAGIC_AFFINITY: return "Magic affinity"; case UNARMED_TRAINING_II: return "Unarmed training II";
 		/// Monk skills
+		case BLOCKING:return "Blocking"; 
+		case EVASION_TRAINING: return "Evasion training"; 
+		case STRENGTHENED_SKIN: return "Strengthened Skin"; 
+		case BLOCKING_II: return "Blocking II";
+		case KICK_ATTACKS: return "Kick attacks"; 
+		case STRENGTHENED_SKIN_II: return "Strengthened skin II";
 		
 		// etc.
 		default:
@@ -147,6 +153,14 @@ void AddPassiveStatBonuses(int skill, char L, Stats & baseStats)
 		case GOAD: baseStats.enmityDecayReduction += L; break; // 1% per L.
 		case DOUBLE_ATTACK_II: baseStats.doubleAttack += L; break;
 		case STALWARD_DEFENDER: baseStats.enmity += L; baseStats.enmityDecayReduction += L; break;
+		/// MONK_SKILLS 1-14
+		case BLOCKING: baseStats.blockRate += 0.02f * L; baseStats.blockDMGReduction += 0.03f * L; baseStats.blockSkillCooldownReduction += 0.01f * L; break;
+		case EVASION_TRAINING: baseStats.evasion += 0.01f * L; break;
+		case STRENGTHENED_SKIN: baseStats.defense += 2 * L; baseStats.mdef += 1 * L; break;
+		/// MONK_SKILLS 15-30
+		case KICK_ATTACKS: baseStats.kickAttack += 0.01f * L; break;
+		case BLOCKING_II: baseStats.blockRate += 0.01f * L; baseStats.blockDMGReduction += 0.005f * L; baseStats.blockSkillCooldownReduction += 0.01f * L; break;
+		case STRENGTHENED_SKIN_II: baseStats.defense += 2.5f * L; baseStats.mdef += 1.25f * L; break;
 	}	
 }
 
@@ -159,32 +173,32 @@ void AddStatsFromBuff(Buff * buff, Character * ch)
 	{
 		// Classless
 		case I_CAN_DO_IT:
-			stats->str += 10; stats->attack += 10; stats->regen += 10; stats->criticalHitRate += 10; stats->accuracy += 10;
-			stats->vit += 10; stats->defense += 10; stats->refresh += 10; stats->evasion += 10;
+			stats->str += 10; stats->attack += 10; stats->regen += 10; stats->criticalHitRate += 0.10f; stats->accuracy += 0.10f;
+			stats->vit += 10; stats->defense += 10; stats->refresh += 10; stats->evasion += 0.10f;
 			break;
 		// Fighter ones.
 		case BERSERK: 
 		{
 			float multiplier = (float) (buff->msSoFar < 30000? 1: ((buff->durationMs - buff->msSoFar) / 30000.f)); 
-			bs.attackSpeed += 100 * multiplier; 
-			bs.damageBonusP += 50 * multiplier; 
-			bs.criticalHitRate += 20 * multiplier; 
-			bs.doubleAttack += 20 * multiplier; 
-			bs.criticalDmgBonus += 20 * multiplier; 
+			bs.attackSpeed += 1.f * multiplier; 
+			bs.damageBonusP += 0.50f * multiplier; 
+			bs.criticalHitRate += 0.20f * multiplier; 
+			bs.doubleAttack += 0.20f * multiplier; 
+			bs.criticalDmgBonus += 0.20f * multiplier; 
 			break;
 		}
-		case CHARGE: bs.movementSpeed += 10 * L; bs.attackBonus += 5 * L; break;
-		case DEFENDER: bs.attackBonus -= 20 + 3 *L; bs.defenseBonus += 20 + 3 *L; bs.healingReceivedBonus += 2 * L; break;
-		case RUSH: bs.attackSpeed += 100; bs.criticalHitRate += 3 * L; break;
-		case OFFENSIVE_STANCE: bs.attackBonus += 20+ 3 *L; bs.defenseBonus -= 20 + 3 *L ; bs.healingReceivedBonus -= 2 * L; break;
-		case GOAD: bs.attackBonus += 10; bs.defenseBonus -= 10; break;
-		case WEAPON_BASH: bs.damageBonusP += 10 * L;
-		case RUSH_II: bs.criticalDmgBonus += 3 * L; bs.accuracy += 3 * L; break;
-		case RUSH_III: bs.criticalHitRate += 2 * L; bs.attackBonus += 2 * L; break;
+		case CHARGE: bs.movementSpeed += 0.10f * L; bs.attackBonus += 5 * L; break;
+		case DEFENDER: bs.attackBonus -= 0.20f + 0.03f * L; bs.defenseBonus += 0.20f + 0.03f * L; bs.healingReceivedBonus += 0.02f * L; break;
+		case RUSH: bs.attackSpeed += 1.00f; bs.criticalHitRate += 0.03f * L; break;
+		case OFFENSIVE_STANCE: bs.attackBonus += 0.20f + 0.03f *L; bs.defenseBonus -= 0.20f + 0.03f * L ; bs.healingReceivedBonus -= 0.02f * L; break;
+		case GOAD: bs.attackBonus += 0.10f; bs.defenseBonus -= 0.10f; break;
+		case WEAPON_BASH: bs.damageBonusP += 0.10f * L;
+		case RUSH_II: bs.criticalDmgBonus += 0.03f * L; bs.accuracy += 0.03f * L; break;
+		case RUSH_III: bs.criticalHitRate += 0.02f * L; bs.attackBonus += 0.02f * L; break;
 		/// MONK SKILLS
 		case INNER_POTENTIAL:
-			stats->regen += stats->maxHp * 0.0025f; stats->movementSpeedBonus += 25.0f; stats->damageBonusP += 25.f; stats->accuracy += 25.f;stats->kickAttack += 25.f;
-			stats->evasion += 25.f; stats->criticalHitRate += 25.f; stats->attackSpeed += 25.f; // stats->stunningFists // Maybe apply later.
+			stats->regen += stats->maxHp * 0.0025f; stats->movementSpeedBonus += 0.25f; stats->damageBonusP += 0.25f; stats->accuracy += 0.25f; stats->kickAttack += 0.25f;
+			stats->evasion += 0.25f; stats->criticalHitRate += 0.25f; stats->attackSpeed += 0.25f; // stats->stunningFists // Maybe apply later.
 			break;
 	}
 }

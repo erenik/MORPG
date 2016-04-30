@@ -18,6 +18,7 @@ class CompactEntity;
 class Zone;
 class Room;
 class Entrance;
+class SpawnArea;
 
 class Zone : public Map
 {
@@ -82,6 +83,9 @@ public:
 	List<Character*> inhabitants;
 	/// Neighbour-zones.
 	List<Zone*> neighbours;
+
+	/// For spawning mobs. Could perhaps be NPCs too later.
+	List<SpawnArea*> spawnAreas;
 
 	/// Slots where buildings could be placed.
 	List<BuildingSlot*> buildingSlots;

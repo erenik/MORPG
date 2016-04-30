@@ -59,6 +59,7 @@ public:
 
 	int characterType;
 
+	void Spawn(); // Spawns. Must have zone assigned before.
 	/// Spawns in map. Must have Zone assigned first.
 	void Spawn(ConstVec3fr position, Zone * intoZone = 0);
 	void Despawn(); // Despawns from previous zone.

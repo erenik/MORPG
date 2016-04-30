@@ -6,6 +6,7 @@
 #include "ZoneGenerator.h"
 
 #include "Zone.h"
+#include "SpawnArea.h"
 
 #include "Character/NPC.h"
 #include "Character/Foe.h"
@@ -271,8 +272,6 @@ void WorldGenerator::EvaluateZoneTypes()
 	}
 }
 
-Random popRand;
-
 /// Populate with characaters.
 void WorldGenerator::Populate()
 {
@@ -290,14 +289,10 @@ void WorldGenerator::Populate()
 		else 
 		{
 			// Add some spawn-zones for Foes. These will be re-populated later if some are killed.
-			/// Populate with some monsters too?
-			for (int i = 0; i < 10; ++i)
-			{
-				Character * foe = new Foe(SHIELDLING, (int) (popRand.Randf() * 7.f - 4.f));
-				Vector3f position = Vector3f(popRand.Randf(20)-10,0,popRand.Randf(20)-10); 
-				foe->position = position;
-				z->AddCharacter(foe);
-			}
+			SpawnArea * sa = new SpawnArea(z, SHIELDLING, -4, 3);
+			z->spawnAreas.AddItem(sa);
+			// Do initial spawn.
+			sa->Spawn(true);
 		}
 	}
 }

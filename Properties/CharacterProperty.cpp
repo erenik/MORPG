@@ -50,6 +50,7 @@ void CharacterProperty::Process(int timeInMs)
 {
 	if (inputFocus)
 		ProcessInput();
+
 	// Camera wooo
 	UpdateCamera();
 	// Dead D:
@@ -81,7 +82,6 @@ void CharacterProperty::Process(int timeInMs)
 			healingMs -= (int) (5000 * testMultiplier);
 			HealTick();
 		}
-		return;
 	}
 
 	/// Process buffs.
@@ -128,21 +128,31 @@ void CharacterProperty::Process(int timeInMs)
 			targetDead = Attack();
 
 			// Check for double attacks.
-			if (!targetDead && ch->stats->doubleAttack > 0 && attackRand.Randf(100.f) < ch->stats->doubleAttack)
+			if (!targetDead && ch->stats->doubleAttack > 0 && attackRand.Randf(1.f) < ch->stats->doubleAttack)
 			{
 				targetDead = Attack();
 			}
 			// Check for kick-attacks.
-			if (!targetDead && unarmed && ch->stats->kickAttack > 0 && attackRand.Randf(100.f) < ch->stats->kickAttack)
+			if (!targetDead && unarmed && ch->stats->kickAttack > 0 && attackRand.Randf(1.f) < ch->stats->kickAttack)
 			{
 				// Add temporary bonuses for kick-attacks?
 				Stats tmp = *ch->stats;
-				ch->stats->damageBonusP += 10.f; // default +10% damage on kick attacks.
+				ch->stats->damageBonusP += 0.10f + ch->stats->kickAttackBonus; // default +10% damage on kick attacks.
 				targetDead = Attack();
 				*ch->stats = tmp;
 			}
 		}
 		attackCooldown += short(ch->stats->weaponDelayMs * testMultiplier); // Attack cooldown.
+	}
+
+	// Gain exp into skills?
+	static int sec = 0;
+	sec += timeInMs;
+	if (sec > 1000)
+	{
+		sec -= 1000;
+		ch->GainSkillExp(10 / testMultiplier);
+//		ch->GainWeaponExp(10);
 	}
 }
 
@@ -222,9 +232,9 @@ bool MCharProp::Attack()
 	/// LDiff
 	int lDiff = tStats->level - mStats->level;
 	/// Accuracy first.
-	float accuracy = mStats->accuracy - tStats->evasion - lDiff * 3.f;
-	ClampFloat(accuracy, 10, 99);
-	bool hit = attackRand.Randf(100.f) < accuracy;
+	float accuracy = mStats->accuracy - tStats->evasion - lDiff * 0.03f;
+	ClampFloat(accuracy, 0.10f, 0.99f);
+	bool hit = attackRand.Randf(1.f) < accuracy;
 	if (!hit){ 
 		morpg->Log(ch->name+" misses "+MainTarget()->name+".");
 		MainTarget()->prop->AddEnmityFor(ch, 1); // Add smaller amount of enmity.
@@ -233,8 +243,8 @@ bool MCharProp::Attack()
 	/// Weapon damage.
 	int weaponDamage = mStats->damage;
 	/// Scale with STR, vs. VIT.
-	int strDiff = (mStats->str - tStats->vit);
-	ClampFloat(strDiff, int(-0.5f * weaponDamage), int(0.5f * weaponDamage));
+	int strDiff = (mStats->str - tStats->vit) / 2;
+	ClampFloat(strDiff, int(-0.5f * weaponDamage - 2), int(0.2f * weaponDamage + 2));
 	weaponDamage += strDiff;
 	/// Apply attack vs. defense.
 	float attack = (float) mStats->Attack();
@@ -261,13 +271,16 @@ bool MCharProp::Attack()
 	}
 	ClampFloat(multiplier, 0.1f, attack * attack / 10000.f+1.f); // Can reach 2x @ 100 attack, 4x @ 200 attack, not higher til then.
 	/// Check for critical hit.
-	bool isCritical = attackRand.Randf(100.f) < (mStats->criticalHitRate - tStats->enemyCriticalHitRate);
+	bool isCritical = attackRand.Randf(1.f) < (mStats->criticalHitRate - tStats->enemyCriticalHitRate);
 	if (isCritical)
 	{
 		multiplier += 1.f; // Add 1x to multiplier, should be sufficient.
-		multiplier *= (100.f +  mStats->criticalDmgBonus) / 100.f; // Add extra percentage based bonuses.
+		multiplier *= (1.f +  mStats->criticalDmgBonus); // Add extra percentage based bonuses.
 	}
 	damage = int(damage * multiplier);
+	/// Block the damage?
+	if (attackRand.Randf(1.f) < tStats->blockRate)
+		damage *= (1 - tStats->blockDMGReduction);
 	ClampFloat(damage, 1, 9999); // min/max dmg.
 	tStats->hp -= damage;
 	if (target == morpg->HUDCharacter())

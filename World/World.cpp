@@ -35,10 +35,15 @@ World::World()
 
 void World::Process(short timeInMs)
 {
-	// Look for interactables to remove or respawn?
+	static int msAccumulated = 0;
+	msAccumulated += timeInMs;
+	if (msAccumulated < 1000)
+		return;
+	msAccumulated -= 1000;
+	// Look for interactables to remove or respawn? Every second?
 	for (int i = 0; i < zones.Size(); ++i)
 	{
-		zones[i]->Process(timeInMs);
+		zones[i]->Process(1000);
 	}
 }
 

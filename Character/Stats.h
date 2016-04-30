@@ -51,7 +51,7 @@ struct Stats {
 	float hp, mp;
 	int maxHp, maxMp;
 	char str, vit, mag;
-	float accuracy, evasion;
+	float accuracy, evasion; // 1.0 for 100%, 
 	int enmity, enmityDecayReduction;
 	int attack, defense, mdef;
 	float attackBonus, defenseBonus; // In percent, in-case they want to be additive and not multiplicative.
@@ -66,7 +66,7 @@ struct Stats {
 	int damage;
 	float damageBonusP; // %-based
 	int weaponDelayMs; // Based on weapon, maybe 1 or 2 skills may affect. Milliseconds-based. 
-	float attackSpeed; // Has its own forumale to affect weapon delay.
+	float attackSpeed; // Has its own forumale to affect weapon delay. 0.0, 1.0 for +100%, etc.
 
 	float counterAttack; // %-based, Fighter stats
 	float doubleAttack; // %-based
@@ -91,7 +91,8 @@ struct Stats {
 	float unarmedSelfDamage; // Default 30%, decreases with traits.
 	float blockRate; // %, 0.1f for 10%
 	float blockDMGReduction; // % 
-	float kickAttack; // %
+	float blockSkillCooldownReduction;
+	float kickAttack; // %, 0.05 for 5%
 	float kickAttackBonus; // o-o
 
 	float stealRate; // Rogue stats, % on attempts, 0.05 for 5%

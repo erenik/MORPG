@@ -5,6 +5,7 @@
 #include "Foe.h"
 #include "Stats.h"
 #include "Family.h"
+#include "World/SpawnArea.h"
 
 Foe::Foe(int family, int level)
 	: Character(CharacterType::FOE), family(family)
@@ -14,7 +15,16 @@ Foe::Foe(int family, int level)
 	name = "Foe";
 	currentClassLvl.second = level;
 	foe = true;
+	sa = 0;
 }
+
+Foe::~Foe()
+{
+	// Notify spawnArea.
+	if (sa)
+		sa->individuals.RemoveItem(this);
+}
+
 
 
 /// Called internally, If returns non-0 value, will not add class-specific base stats.
@@ -45,17 +55,17 @@ int Foe::UpdateBaseStatsAlternative()
 			assert(false);
 	}
 	int L = currentClassLvl.second;
-	bs.str += (int) strL * L;
-	bs.vit += (int) vitL * L;
-	bs.maxHp += (int) hpL * L;
-	bs.mag += (int) magL * L;
-	bs.mdef += (int) MdefL * L;
-	bs.maxMp += (int) mpL * L;
+	bs.str += int(strL * L);
+	bs.vit += int(vitL * L);
+	bs.maxHp += int(hpL * L);
+	bs.mag += int(magL * L);
+	bs.mdef += int(MdefL * L);
+	bs.maxMp += int(mpL * L);
 	bs.maxHp = (int) ((1.0f + hppL * 0.01f * (float)L) * bs.maxHp);
 	bs.maxMp = (int) ((1.0f + mppL * 0.01f * (float)L) * bs.maxMp);
 	bs.damage += (int) (dmgL * L);
-	bs.attack += (int) attL * L;
-	bs.defense += (int) defL * L;
+	bs.attack += int(attL * L);
+	bs.defense += int(defL * L);
 	std::cout<<"\nHP: "<<bs.maxHp;
 
 

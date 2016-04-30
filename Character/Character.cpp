@@ -93,34 +93,26 @@ Character::~Character()
 	delete statsWithBuffs;
 }
 
-/// Spawns in map. Must have map assigned first.
-void Character::Spawn(ConstVec3fr position, Zone * intoZone)
+// Spawns. Must have zone assigned before.
+void Character::Spawn()
 {
+	if (prop != 0)
+	{
+		std::cout<<"\n"<<name<<" already spawned.";
+		return;
+	}
 	// If prop is 0, shouldn't be spawned. 
 	assert(prop == 0); 
-	/// Still spawned since earlier. Despawn first? No.
-	if (zone)
-	{
-//		Despawn();
-	}
 	assert(characterType != CT::BAD_TYPE);
-	if (intoZone && zone == 0)
-	{
-		zone = intoZone;
-		zone->AddCharacter(this); // Add character to zone too if not already there.
-	}
-	assert(zone);
-
 	// update all stats right before spawning.
-	UpdateBaseStatsToClassAndLevel();
-
-	/// Copy hp and mp from max, since spawning. No.
-	if (false)
+	UpdateBaseStatsToClassAndLevel(); // Set max hp/mp?
+	/// Depending on character type, full-heal.
+	switch(characterType)
 	{
-		stats->hp = (float) stats->maxHp;
-		stats->mp = (float) stats->maxMp;
-	}
-
+		case CharacterType::FOE: 
+			stats->hp = stats->maxHp; stats->mp = stats->maxMp; 
+			break;
+	};
 	// Select texture based on type.
 	String tex = "0xAA";
 	switch(characterType)
@@ -143,6 +135,19 @@ void Character::Spawn(ConstVec3fr position, Zone * intoZone)
 	// Prop
 	prop = new CharacterProperty(entity, this);
 	entity->properties.Add(prop);
+}
+
+/// Spawns in map. Must have map assigned first.
+void Character::Spawn(ConstVec3fr inPosition, Zone * intoZone)
+{
+	this->position = inPosition;
+	if (intoZone && zone == 0)
+	{
+		zone = intoZone;
+		zone->AddCharacter(this); // Add character to zone too if not already there.
+	}
+	assert(zone);
+	Spawn();
 }
 
 // Despawns from previous zone.
@@ -272,6 +277,8 @@ int Character::GainSkillExp(int amount)
 		{
 			se.second += amount;
 			int skillLvl = SkillLevel(skillTraining);
+			if (skillLvl >= 10)
+				return 0;
 			int tnl = TNLSkill(se.first, skillLvl);
 			if (se.second > tnl)
 			{
@@ -347,15 +354,17 @@ void Character::UpdateBaseStatsForClass()
 	for (int i = 0; i < skills.Size(); ++i)
 	{
 		std::pair<int, char> skill = skills[i];
+		bool add = false;
 		// Diss those outside of range (120 skills per class).
-		if (skill.first > CLASSLESS_SKILLS * SPC &&
-				(
-				skill.first < currentClassLvl.first * SPC || skill.first >= (currentClassLvl.first+1) * SPC
-				)
-			)
-			continue;
+		if (skill.first >= currentClassLvl.first * SPC && skill.first < (currentClassLvl.first+1) * SPC)
+			add = true;
+		// Add classess.
+		if (skill.first < CLASSLESS_SKILLS + SPC)
+			add = true;
 		// Exception to the rule.
 		if (skill.first == 0 && currentClassLvl.first != CLASSLESS)
+			continue;
+		if (!add)
 			continue;
 		availableSkills.AddItem(skill);
 		if (IsActivatableCombatSkill(skill.first))
@@ -471,19 +480,19 @@ void Character::UpdateGearStatsToCurrentGear()
 	Stats & s = *statsWithGear;
 	if (to5 > 0)
 	{
-		s.accuracy -= to5 * 7;
-		s.attackBonus -= to5 * 7;
+		s.accuracy -= to5 * 0.07f;
+		s.attackBonus -= to5 * 0.07f;
 	}
 	/// Above 5, bonuses
 	else {
-		s.accuracy += level - 5;
+		s.accuracy += (level - 5) * 0.01f;
 		s.attack += level - 5;
-		s.attackSpeed += (level - 5) * 0.4f;
+		s.attackSpeed += (level - 5) * 0.004f;
 		s.damage += int((level - 5) * 0.1f * (statsWithGear->weaponType == UNARMED? 2.f : 1.f));
 		if (level > 100)
-			s.criticalHitRate += (level - 100) * 0.06125f;
+			s.criticalHitRate += (level - 100) * 0.0006125f;
 		if (level > 150)
-			s.criticalDmgBonus += (level - 150) * 0.5f;
+			s.criticalDmgBonus += (level - 150) * 0.005f;
 	}
 	/// Now that we know what weapon we have, apply unarmed amage bonus straight to damage.
 	if (s.weaponType == UNARMED)

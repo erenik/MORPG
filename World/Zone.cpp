@@ -3,6 +3,7 @@
 /// A single zone within the world.
 
 #include "Zone.h"
+#include "SpawnArea.h"
 
 #include "Entity/Entity.h"
 #include "Entity/CompactEntity.h"
@@ -130,6 +131,12 @@ void Zone::Process(int timeInMs)
 		interactables.RemoveItem(c);
 		delete c;
 	}
+	/// Process SpawnAreas if any.
+	for (int i = 0; i < spawnAreas.Size(); ++i)
+	{
+		SpawnArea * sa = spawnAreas[i];
+		sa->Process(timeInMs);
+	}
 }
 
 /// Adds character to zone.
@@ -141,6 +148,9 @@ void Zone::AddCharacter(Character * c)
 	interactables.AddItem(c);
 	/// Move divisions later...
 	c->zone = this;
+	/// If the zone is active, spawn the actual foe into place too?
+	if (this->active)
+		c->Spawn();
 }
 
 void Zone::RemoveCharacter(Character * c)
@@ -372,4 +382,3 @@ bool Zone::ReadFrom(std::fstream & file)
 //	std::cout<<"\nRead zone "<<name<<" with elevation "<<elevation;
 	return true;
 }
-

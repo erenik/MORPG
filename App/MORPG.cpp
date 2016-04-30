@@ -292,6 +292,10 @@ void MORPG::ProcessMessage(Message * message)
 				String end;
 				if (lvlDiff == 0)
 					end = "like an even match";
+				else if (lvlDiff > 6)
+					end = "incredibly tough";
+				else if (lvlDiff > 3)
+					end = "very tough";
 				else if (lvlDiff > 0)
 					end = "tough";
 				else if (lvlDiff > -3) end = "like a decent challenge";

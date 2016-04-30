@@ -2,15 +2,23 @@
 /// 2016-04-23
 /// Default character you would battle against.
 
+#ifndef FOE_H
+#define FOE_H
+
 #include "Character.h"
 #include "Family.h"
+
+class SpawnArea;
 
 class Foe : public Character
 {
 public:
 	Foe(int family, int level);
+	virtual ~Foe();
 	/// See family above. Species are pretty much just to distinguish which level-bracket they should spawn in, which zones, etc.
 	int family, species;
+	/// If spawned in one.
+	SpawnArea * sa;
 
 	/// Called internally, If returns non-0 value, will not add class-specific base stats.
 	//	UPDATE_STATS_FOR_CLASS, // Default, will apply current class stats for given level.
@@ -46,3 +54,4 @@ enum spikelingSpecies
 	MEDIUM_SPIKELING, // 14-20
 };
 
+#endif
